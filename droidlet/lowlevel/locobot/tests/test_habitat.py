@@ -1,6 +1,7 @@
 """
 Copyright (c) Facebook, Inc. and its affiliates.
 """
+
 import unittest
 import os
 import Pyro4
@@ -15,9 +16,7 @@ from numpy.testing import assert_allclose
 
 Pyro4.config.SERIALIZER = "pickle"
 Pyro4.config.SERIALIZERS_ACCEPTED.add("pickle")
-IP = "127.0.0.1"
-if os.getenv("LOCOBOT_IP"):
-    IP = os.getenv("LOCOBOT_IP")
+IP = os.getenv("LOCOBOT_IP") or "127.0.0.1"
 
 
 def get_asset_path(name):
@@ -37,7 +36,7 @@ def assert_image(image, expected_image_path):
 def assert_visual(bot, key):
     assert type(key) == str
     image = bot.get_rgb()
-    assert_image(image, get_asset_path(key + ".png"))
+    assert_image(image, get_asset_path(f"{key}.png"))
 
 
 def assert_turn_degree(initial, final, degree):
@@ -49,7 +48,7 @@ def assert_turn_degree(initial, final, degree):
 class NavigationTests(unittest.TestCase):
     def setUp(self):
         global IP
-        self.bot = Pyro4.Proxy("PYRONAME:remotelocobot@" + IP)
+        self.bot = Pyro4.Proxy(f"PYRONAME:remotelocobot@{IP}")
         if not hasattr(self, "initial_state"):
             self.initial_state = self.bot.get_base_state(state_type="odom")
         else:
@@ -63,7 +62,7 @@ class NavigationTests(unittest.TestCase):
         assert_allclose(initial_state, self.bot.get_base_state("odom"), rtol=1e-3)
         # assert_visual(self.bot, "go_to_absolute1")
 
-        for i in range(10):
+        for _ in range(10):
             # test that multiple calls don't create side-effects
             self.bot.go_to_absolute(initial_state, close_loop=False)
         assert_allclose(initial_state, self.bot.get_base_state("odom"), rtol=1e-3)
@@ -83,7 +82,7 @@ class NavigationTests(unittest.TestCase):
 class PerceptionTests(unittest.TestCase):
     def setUp(self):
         global IP
-        self.bot = Pyro4.Proxy("PYRONAME:remotelocobot@" + IP)
+        self.bot = Pyro4.Proxy(f"PYRONAME:remotelocobot@{IP}")
         initial_state = [4.8, 0.16, -1.0]  # in apartment_0, right in front of the humans
         # make sure after every unit test to go back to initial position
         self.bot.go_to_absolute(initial_state, close_loop=False)

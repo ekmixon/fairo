@@ -108,14 +108,7 @@ class RemoteLocobot(object):
         # cap anything more than np.power(2,16)~ 65 meter
         depth[depth > np.power(2, 16) - 1] = np.power(2, 16) - 1
         depth = depth.astype(np.uint16)
-        if self.backend == "locobot":
-            trans, rot, T = self._robot.camera.get_link_transform(
-                self._robot.camera.cam_cf, self._robot.camera.base_f
-            )
-            base2cam_trans = np.array(trans).reshape(-1, 1)
-            base2cam_rot = np.array(rot)
-            return rgb, depth, base2cam_rot, base2cam_trans
-        elif self.backend == "habitat":
+        if self.backend == "habitat":
             cur_state = self._robot.camera.agent.get_state()
             cur_sensor_state = cur_state.sensor_states["rgb"]
             initial_rotation = cur_state.rotation
@@ -125,6 +118,13 @@ class RemoteLocobot(object):
             cur_rotation = self._robot.camera._rot_matrix(cur_sensor_state.rotation)
             cur_rotation = rot_init_rotation.T @ cur_rotation
             return rgb, depth, cur_rotation, -relative_position
+        elif self.backend == "locobot":
+            trans, rot, T = self._robot.camera.get_link_transform(
+                self._robot.camera.cam_cf, self._robot.camera.base_f
+            )
+            base2cam_trans = np.array(trans).reshape(-1, 1)
+            base2cam_rot = np.array(rot)
+            return rgb, depth, base2cam_rot, base2cam_trans
         return None
 
     # Navigation wrapper
@@ -401,9 +401,7 @@ class RemoteLocobot(object):
         :rtype: np.ndarray or None
         """
         depth = self._robot.camera.get_depth()
-        if depth is not None:
-            return depth
-        return None
+        return depth if depth is not None else None
 
     def get_depth_bytes(self):
         """Returns the depth image perceived by the camera.
@@ -412,9 +410,7 @@ class RemoteLocobot(object):
         :rtype: np.ndarray or None
         """
         depth = self._robot.camera.get_depth().astype(np.int64)
-        if depth is not None:
-            return depth.tobytes()
-        return None
+        return depth.tobytes() if depth is not None else None
 
     def get_intrinsics(self):
         """Returns the intrinsic matrix of the camera.
@@ -423,9 +419,7 @@ class RemoteLocobot(object):
         :rtype: list
         """
         intrinsics = self._robot.camera.get_intrinsics()
-        if intrinsics is not None:
-            return intrinsics.tolist()
-        return None
+        return intrinsics.tolist() if intrinsics is not None else None
 
     def get_rgb(self):
         """Returns the RGB image perceived by the camera.
@@ -434,16 +428,12 @@ class RemoteLocobot(object):
         :rtype: np.ndarray or None
         """
         rgb = self._robot.camera.get_rgb()
-        if rgb is not None:
-            return rgb
-        return None
+        return rgb if rgb is not None else None
 
     def get_rgbd_segm(self):
         """Returns the RGB image, depth, instance segmentation map."""
         rgb, d, segm = self._robot.camera.get_rgb_depth_segm()
-        if rgb is not None:
-            return rgb, d, segm
-        return None
+        return (rgb, d, segm) if rgb is not None else None
 
     def get_rgb_bytes(self):
         """Returns the RGB image perceived by the camera.
@@ -452,9 +442,7 @@ class RemoteLocobot(object):
         :rtype: np.ndarray or None
         """
         rgb = self._robot.camera.get_rgb().astype(np.int64)
-        if rgb is not None:
-            return rgb.tobytes()
-        return None
+        return rgb.tobytes() if rgb is not None else None
 
     def transform_pose(self, XYZ, current_pose):
         """
@@ -680,12 +668,10 @@ class RemoteLocobot(object):
         """returns the location of obstacles created by slam only for the obstacles,"""
         # get the index correspnding to obstacles
         indices = np.where(self._slam.map_builder.map[:, :, 1] >= 1.0)
-        # convert them into robot frame
-        real_world_locations = [
+        return [
             self._slam.map2real([indice[0], indice[1]]).tolist()
             for indice in zip(indices[0], indices[1])
         ]
-        return real_world_locations
 
 
 if __name__ == "__main__":

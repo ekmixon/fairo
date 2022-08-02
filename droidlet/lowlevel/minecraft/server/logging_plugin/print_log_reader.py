@@ -21,7 +21,7 @@ class PrintLogReader(BaseLogReader):
                 len(only_hooks) > 0 and hid not in only_hooks
             ):
                 continue
-            func_name = "on_" + hook_name.lower()
+            func_name = f"on_{hook_name.lower()}"
             func = lambda *x, name=hook_name: print(*x[:2], name, *x[2:])
             setattr(self, func_name, func)
 

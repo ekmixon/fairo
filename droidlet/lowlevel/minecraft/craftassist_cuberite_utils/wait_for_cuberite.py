@@ -9,7 +9,7 @@ from droidlet.lowlevel.minecraft.craftassist_cuberite_utils import ping_cuberite
 def wait_for_server(host, port, wait_ms=200, max_tries=200):
     """This function tries max_tries times to connect to the
     host at the port using a socket connection"""
-    for i in range(max_tries):
+    for _ in range(max_tries):
         try:
             s = socket.socket()
             s.connect((host, port))
@@ -20,7 +20,7 @@ def wait_for_server(host, port, wait_ms=200, max_tries=200):
 
     # Never came up, throw connection error
     waited_s = wait_ms * max_tries / 1000
-    raise ConnectionError("Cuberite not up at port {} after {}s".format(port, waited_s))
+    raise ConnectionError(f"Cuberite not up at port {port} after {waited_s}s")
 
 
 def wait_for_cuberite(host, port):

@@ -10,16 +10,17 @@ AGENTPOS = {"reference_object": {"special_reference": "AGENT"}}
 
 def ref_obj_lf_to_selector(ref_obj_dict):
     """ref_obj_dict should be {"reference_object ": ...}"""
-    s = {
+    return {
         "return_quantity": {
             "argval": {
                 "ordinal": "FIRST",
                 "polarity": "MIN",
-                "quantity": {"attribute": {"linear_extent": {"source": ref_obj_dict}}},
+                "quantity": {
+                    "attribute": {"linear_extent": {"source": ref_obj_dict}}
+                },
             }
         }
     }
-    return s
 
 
 def maybe_listify_tags(t):
@@ -27,9 +28,7 @@ def maybe_listify_tags(t):
 
 
 def strip_prefix(s, pre):
-    if s.startswith(pre):
-        return s[len(pre) :]
-    return s
+    return s[len(pre) :] if s.startswith(pre) else s
 
 
 # FIXME... be more careful with OR and NOT
@@ -44,9 +43,9 @@ def backoff_where(where_clause, triples_to_tags=True, canonicalize=True, lower=F
     """
     new_where_clause = deepcopy(where_clause)
     tags = []
-    # doesn't check if where_clause is well formed
-    conj = list(set(["AND", "OR", "NOT"]).intersection(set(where_clause.keys())))
-    if conj:  # recurse
+    if conj := list(
+        {"AND", "OR", "NOT"}.intersection(set(where_clause.keys()))
+    ):
         conj = conj[0]
         for i in range(len(where_clause[conj])):
             clause_tags, new_subclause = backoff_where(
@@ -57,40 +56,39 @@ def backoff_where(where_clause, triples_to_tags=True, canonicalize=True, lower=F
             )
             tags.extend(clause_tags)
             new_where_clause[conj][i] = new_subclause
-    else:  # a leaf
-        if "input_left" in where_clause:
-            # a triple expressed as a comparator
-            if type(where_clause["input_left"]) is str and where_clause["input_left"].startswith(
-                "has_"
-            ):
-                new_o = where_clause["input_right"]
-                if type(new_o) is str:
-                    if canonicalize:
-                        new_o = strip_prefix(new_o, "the ")
-                    tags.append(new_o)
-                    if triples_to_tags:
-                        new_where_clause["input_left"] = "has_tag"
-                    new_where_clause["input_right"] = new_o
-            if lower:
-                if type(new_where_clause["input_right"]) is str:
-                    new_where_clause["input_right"] = new_where_clause["input_right"].lower()
-                if type(new_where_clause["input_left"]) is str:
-                    new_where_clause["input_left"] = new_where_clause["input_left"].lower()
-        else:  # triple...
-            p = where_clause.get("pred_text")
-            if p and type(p) is str and p.startswith("has_"):
-                new_o = where_clause.get("obj_text")
-                if new_o and type(new_o) is str:  # don't try to fix subqueries
-                    if canonicalize:
-                        new_o = strip_prefix(new_o, "the ")
-                    tags.append(new_o)
-                    if triples_to_tags:
-                        new_where_clause["pred_text"] = "has_tag"
-                    new_where_clause["obj_text"] = new_o
-            if lower:
-                for k in ["subj_text", "pred_text", "obj_text"]:
-                    if new_where_clause.get(k) is str:
-                        new_where_clause[k] = new_where_clause[k].lower()
+    elif "input_left" in where_clause:
+        # a triple expressed as a comparator
+        if type(where_clause["input_left"]) is str and where_clause["input_left"].startswith(
+            "has_"
+        ):
+            new_o = where_clause["input_right"]
+            if type(new_o) is str:
+                if canonicalize:
+                    new_o = strip_prefix(new_o, "the ")
+                tags.append(new_o)
+                if triples_to_tags:
+                    new_where_clause["input_left"] = "has_tag"
+                new_where_clause["input_right"] = new_o
+        if lower:
+            if type(new_where_clause["input_right"]) is str:
+                new_where_clause["input_right"] = new_where_clause["input_right"].lower()
+            if type(new_where_clause["input_left"]) is str:
+                new_where_clause["input_left"] = new_where_clause["input_left"].lower()
+    else:  # triple...
+        p = where_clause.get("pred_text")
+        if p and type(p) is str and p.startswith("has_"):
+            new_o = where_clause.get("obj_text")
+            if new_o and type(new_o) is str:  # don't try to fix subqueries
+                if canonicalize:
+                    new_o = strip_prefix(new_o, "the ")
+                tags.append(new_o)
+                if triples_to_tags:
+                    new_where_clause["pred_text"] = "has_tag"
+                new_where_clause["obj_text"] = new_o
+        if lower:
+            for k in ["subj_text", "pred_text", "obj_text"]:
+                if new_where_clause.get(k) is str:
+                    new_where_clause[k] = new_where_clause[k].lower()
 
     return list(set(tags)), new_where_clause
 
@@ -98,10 +96,11 @@ def backoff_where(where_clause, triples_to_tags=True, canonicalize=True, lower=F
 def is_loc_speakerlook(d):
     # checks a location dict to see if it is SPEAKER_LOOK
     r = d.get("reference_object")
-    if r and r.get("special_reference"):
-        if r["special_reference"] == "SPEAKER_LOOK":
-            return True
-    return False
+    return bool(
+        r
+        and r.get("special_reference")
+        and r["special_reference"] == "SPEAKER_LOOK"
+    )
 
 
 def process_spans_and_remove_fixed_value(d, original_words, lemmatized_words):
@@ -128,13 +127,10 @@ def process_spans_and_remove_fixed_value(d, original_words, lemmatized_words):
                     raise NotImplementedError("Must update process_spans for multi-string inputs")
                 if L > R:
                     L = R
-                if L < 0:
-                    L = 0
+                L = max(L, 0)
                 if R > (len(lemmatized_words) - 1):
                     R = len(lemmatized_words) - 1
-            except ValueError:
-                continue
-            except TypeError:
+            except (ValueError, TypeError):
                 continue
             original_w = " ".join(original_words[L : (R + 1)])
             # The lemmatizer converts 'it' to -PRON-
@@ -160,7 +156,7 @@ def coref_resolve(memory, d, chat):
     """
 
     c = chat.split()
-    if not type(d) is dict:
+    if type(d) is not dict:
         return
     for k, v in d.items():
         if type(v) == dict:
@@ -177,7 +173,6 @@ def coref_resolve(memory, d, chat):
                     val = SPEAKERPOS if "here" in c else SPEAKERLOOK
                     v_copy["reference_object"] = val["reference_object"]
                     v_copy["contains_coreference"] = "resolved"
-            d[k] = v_copy
         elif k == "filters":
             # v is a reference object dict
             for k_ in v:
@@ -192,14 +187,9 @@ def coref_resolve(memory, d, chat):
                             mems = memory.get_recent_entities(
                                 "Mob"
                             )  # if its a follow, this should be first, FIXME
-                            if len(mems) == 0:
-                                v_copy[k_] = "NULL"
-                            else:
-                                v_copy[k_] = mems[0]
+                            v_copy[k_] = "NULL" if len(mems) == 0 else mems[0]
                         else:
                             v_copy[k_] = mems[0]
-            d[k] = v_copy
-        # fix/delete this branch! its for old broken spec
         else:
             for k_ in v:
                 if k_ == "contains_coreference":
@@ -207,7 +197,8 @@ def coref_resolve(memory, d, chat):
                     if "this" in c or "that" in c:
                         v_copy["location"] = SPEAKERLOOK
                         v_copy["contains_coreference"] = "resolved"
-            d[k] = v_copy
+
+        d[k] = v_copy
 
 
 if __name__ == "__main__":

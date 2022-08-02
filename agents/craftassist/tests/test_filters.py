@@ -65,12 +65,12 @@ class FiltersTest(BaseCraftassistTestCase):
         memids = []
         num_tries = 25
         b = DI.subinterpret["filters"](DI, "SPEAKER", o)
-        for i in range(num_tries):
+        for _ in range(num_tries):
             mems, vals = b()
             self.assertEqual(len(mems), 1)
             memids.append(mems[0])
 
-        assert not all([m == memids[0] for m in memids])
+        assert any(m != memids[0] for m in memids)
 
         b = DI.subinterpret["filters"](DI, "SPEAKER", t)
         mems, vals = b()

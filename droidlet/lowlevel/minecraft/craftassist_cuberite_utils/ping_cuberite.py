@@ -18,7 +18,7 @@ def ping(host, port, timeout=10):
     s.settimeout(timeout)
     s.send(HANDSHAKE_PING)
     response = s.recv(len(PONG))
-    assert response == PONG, "Bad pong: {}".format(response)
+    assert response == PONG, f"Bad pong: {response}"
 
 
 if __name__ == "__main__":
@@ -29,6 +29,6 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=25565)
     args = parser.parse_args()
 
-    print("Sending ping to {}:{}".format(args.host, args.port))
+    print(f"Sending ping to {args.host}:{args.port}")
     ping(args.host, args.port)
     print("Received pong!")

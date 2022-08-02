@@ -58,7 +58,7 @@ def astar(agent, target, approx=0, pos="agent"):
     t_start = time.time()
     if type(pos) is str and pos == "agent":
         pos = agent.pos
-    logging.debug("A* from {} -> {} ± {}".format(pos, target, approx))
+    logging.debug(f"A* from {pos} -> {target} ± {approx}")
 
     corners = np.array([pos, target]).astype("int32")
     mx, my, mz = corners.min(axis=0) - 10
@@ -73,7 +73,10 @@ def astar(agent, target, approx=0, pos="agent"):
         path = [(p[2] + mx, p[0] + my, p[1] + mz) for p in reversed(path)]
 
     t_elapsed = time.time() - t_start
-    logging.debug("A* returned {}-len path in {}".format(len(path) if path else "None", t_elapsed))
+    logging.debug(
+        f'A* returned {len(path) if path else "None"}-len path in {t_elapsed}'
+    )
+
     return path
 
 
@@ -159,7 +162,7 @@ class PriorityQueue:
                 self.q[i] = (newp, x)
                 heapq.heapify(self.q)  # TODO: probably slow
                 return
-        raise ValueError("Not found: {}".format(x))
+        raise ValueError(f"Not found: {x}")
 
     def __len__(self):
         return len(self.q)

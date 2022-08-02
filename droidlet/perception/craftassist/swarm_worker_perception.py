@@ -14,7 +14,5 @@ class SwarmLowLevelMCPerception(LowLevelMCPerception):
         """
         # FIXME (low pri) remove these in code, get from sql
         self.agent.pos = to_block_pos(pos_to_np(self.agent.get_player().pos))
-        perception = {}
-        perception["agent_pos"] = self.agent.pos
-        return perception
+        return {"agent_pos": self.agent.pos}
 

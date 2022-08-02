@@ -117,10 +117,7 @@ class CraftAssistAgent(LocoMCAgent):
         player called "dashboard" if it doesn't already exist."""
         all_players = self.cagent.get_other_players()
         updated_players = all_players
-        player_exists = False
-        for player in all_players:
-            if player.name == "dashboard":
-                player_exists = True
+        player_exists = any(player.name == "dashboard" for player in updated_players)
         if not player_exists:
             newPlayer = Player(
                 12345678, "dashboard", Pos(0.0, 64.0, 0.0), Look(0.0, 0.0), Item(0, 0)
@@ -172,13 +169,14 @@ class CraftAssistAgent(LocoMCAgent):
         self.memory = mc_memory.MCAgentMemory(
             db_file=os.environ.get("DB_FILE", ":memory:"),
             coordinate_transforms=self.coordinate_transforms,
-            db_log_path="agent_memory.{}.log".format(self.name),
+            db_log_path=f"agent_memory.{self.name}.log",
             agent_time=MCTime(self.get_world_time),
             agent_low_level_data=self.low_level_data,
         )
+
         # Add all dances to memory
         dance.add_default_dances(self.memory)
-        file_log_handler = logging.FileHandler("agent.{}.log".format(self.name))
+        file_log_handler = logging.FileHandler(f"agent.{self.name}.log")
         file_log_handler.setFormatter(log_formatter)
         logging.getLogger().addHandler(file_log_handler)
         logging.info("Initialized agent memory")
@@ -198,16 +196,17 @@ class CraftAssistAgent(LocoMCAgent):
                 self, self.opts.semseg_model_path
             )
 
-        self.on_demand_perception = {}
-        self.on_demand_perception["check_inside"] = heuristic_perception.check_inside
+        self.on_demand_perception = {"check_inside": heuristic_perception.check_inside}
 
     def init_controller(self):
         """Initialize all controllers"""
-        dialogue_object_classes = {}
-        dialogue_object_classes["bot_capabilities"] = MCBotCapabilities
-        dialogue_object_classes["interpreter"] = MCInterpreter
-        dialogue_object_classes["get_memory"] = MCGetMemoryHandler
-        dialogue_object_classes["put_memory"] = PutMemoryHandler
+        dialogue_object_classes = {
+            "bot_capabilities": MCBotCapabilities,
+            "interpreter": MCInterpreter,
+            "get_memory": MCGetMemoryHandler,
+            "put_memory": PutMemoryHandler,
+        }
+
         low_level_interpreter_data = {
             'block_data': craftassist_specs.get_block_data(),
             'special_shape_functions': SPECIAL_SHAPE_FNS,
@@ -302,8 +301,8 @@ class CraftAssistAgent(LocoMCAgent):
 
     def send_chat(self, chat):
         """Send chat from agent to player"""
-        logging.info("Sending chat: {}".format(chat))
-        sio.emit("showAssistantReply", {'agent_reply' : "Agent: {}".format(chat)})
+        logging.info(f"Sending chat: {chat}")
+        sio.emit("showAssistantReply", {'agent_reply': f"Agent: {chat}"})
         self.memory.add_chat(self.memory.self_memid, chat)
         return self.cagent.send_chat(chat)
 
@@ -390,7 +389,7 @@ class CraftAssistAgent(LocoMCAgent):
         # For testing agent without cuberite server
         if self.opts.port == -1:
             return
-        logging.info("Attempting to connect to port {}".format(self.opts.port))
+        logging.info(f"Attempting to connect to port {self.opts.port}")
         self.cagent = MCAgent("localhost", self.opts.port, self.name)
         logging.info("Logged in to server")
         self.dig = self.cagent.dig
@@ -460,7 +459,7 @@ if __name__ == "__main__":
     sh.setFormatter(log_formatter)
     logger = logging.getLogger()
     logger.addHandler(sh)
-    logging.info("LOG LEVEL: {}".format(logger.level))
+    logging.info(f"LOG LEVEL: {logger.level}")
 
     # Check that models and datasets are up to date and download latest resources.
     # Also fetches additional resources for internal users.

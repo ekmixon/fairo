@@ -26,8 +26,9 @@ class Inventory:
     def remove_item_stack(self, idm: IDM, memid):
         if idm not in self.items_map or memid not in self.items_map[idm][1]:
             return
-        item_stack_node = next(i for i in self.items_map[idm][1] if i[0] == memid)
-        if item_stack_node:
+        if item_stack_node := next(
+            i for i in self.items_map[idm][1] if i[0] == memid
+        ):
             self.items_map[idm][0] -= item_stack_node[1]
             self.items_map[idm][1].remove(item_stack_node)
 

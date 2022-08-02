@@ -49,12 +49,12 @@ class MCGetMemoryHandler(GetMemoryHandler):
             assert isinstance(task.task, Build), task.task
             for pred, val in task.task.schematic_tags:
                 if pred == "has_name":
-                    return "I am building " + prepend_a_an(val), None
-                return "I am building something that is {}".format(val), None
+                    return f"I am building {prepend_a_an(val)}", None
+                return f"I am building something that is {val}", None
         elif refobj_attr == "location":
             assert task.action_name == "Move", task.action_name
             target = tuple(task.task.target)
-            return "I am going to {}".format(target), None
+            return f"I am going to {target}", None
         else:
-            raise ErrorWithResponse("trying get attribute {} from action".format(refobj_attr))
+            raise ErrorWithResponse(f"trying get attribute {refobj_attr} from action")
         return None, None

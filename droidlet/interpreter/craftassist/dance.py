@@ -69,13 +69,12 @@ def generate_sequential_move_fn(sequence):
     def move_fn(danceObj, agent):
         if danceObj.tick >= len(sequence):
             return None
+        if danceObj.dance_location is not None and danceObj.tick == 0:
+            mv = tasks.Move(agent, {"target": danceObj.dance_location, "approx": 0})
+            danceObj.dance_location = None
         else:
-            if danceObj.dance_location is not None and danceObj.tick == 0:
-                mv = tasks.Move(agent, {"target": danceObj.dance_location, "approx": 0})
-                danceObj.dance_location = None
-            else:
-                mv = tasks.DanceMove(agent, sequence[danceObj.tick])
-                danceObj.tick += 1
+            mv = tasks.DanceMove(agent, sequence[danceObj.tick])
+            danceObj.tick += 1
         return mv
 
     return move_fn
@@ -128,7 +127,7 @@ class RefObjMovement(Movement):
             bounds = ref_object.get_bounds()
             center = ref_object.get_pos()
         d = max(bounds[1] - bounds[0], bounds[3] - bounds[2], bounds[5] - bounds[4])
-        if relative_direction == "CLOCKWISE" or relative_direction == "AROUND":
+        if relative_direction in ["CLOCKWISE", "AROUND"]:
             offsets = droidlet.base_util.arrange(
                 "circle", schematic=None, shapeparams={"encircled_object_radius": d}
             )

@@ -132,7 +132,7 @@ class LocobotAgent(LocoMCAgent):
                 del o["feature_repr"] # pickling optimization
             self.dashboard_memory["objects"] = objects
             sio.emit("updateState", {"memory": self.dashboard_memory})
-        
+
         @sio.on("interaction data")
         def log_interaction_data(sid, interactionData):
             self.interaction_logger.logInteraction(interactionData)
@@ -142,7 +142,7 @@ class LocobotAgent(LocoMCAgent):
         def label_propagation(sid, postData):        
             objects = LP.label_propagation(postData)
             sio.emit("labelPropagationReturn", objects)
-        
+
         @sio.on("save_rgb_seg")
         def save_rgb_seg(sid, postData): 
             LP.save_rgb_seg(postData)
@@ -168,8 +168,8 @@ class LocobotAgent(LocoMCAgent):
             model_dir = "annotation_data/model"
             model_names = os.listdir(model_dir)
             model_nums = list(map(lambda x: int(x.split("v")[1]), model_names))
-            last_model_num = max(model_nums) 
-            model_path = os.path.join(model_dir, "v" + str(last_model_num))
+            last_model_num = max(model_nums)
+            model_path = os.path.join(model_dir, f"v{str(last_model_num)}")
             detector_weights = "model_999.pth"
             properties_file = "props.json"
             things_file = "things.json"
@@ -242,11 +242,13 @@ class LocobotAgent(LocoMCAgent):
 
     def init_controller(self):
         """Instantiates controllers - the components that convert a text chat to task(s)."""
-        dialogue_object_classes = {}
-        dialogue_object_classes["bot_capabilities"] = LocoBotCapabilities
-        dialogue_object_classes["interpreter"] = LocoInterpreter
-        dialogue_object_classes["get_memory"] = LocoGetMemoryHandler
-        dialogue_object_classes["put_memory"] = PutMemoryHandler
+        dialogue_object_classes = {
+            "bot_capabilities": LocoBotCapabilities,
+            "interpreter": LocoInterpreter,
+            "get_memory": LocoGetMemoryHandler,
+            "put_memory": PutMemoryHandler,
+        }
+
         self.dialogue_manager = DialogueManager(
             memory=self.memory,
             dialogue_object_classes=dialogue_object_classes,
@@ -259,8 +261,7 @@ class LocobotAgent(LocoMCAgent):
         self.mover = LoCoBotMover(ip=self.opts.ip, backend=self.opts.backend)
 
     def get_player_struct_by_name(self, speaker_name):
-        p = self.memory.get_player_by_name(speaker_name)
-        if p:
+        if p := self.memory.get_player_by_name(speaker_name):
             return p.get_struct()
         else:
             return None
@@ -270,8 +271,8 @@ class LocobotAgent(LocoMCAgent):
 
     def get_incoming_chats(self):
         all_chats = []
-        speaker_name = "dashboard"
         if self.dashboard_chat is not None:
+            speaker_name = "dashboard"
             if not self.memory.get_player_by_name(speaker_name):
                 PlayerNode.create(
                     self.memory,
@@ -283,9 +284,9 @@ class LocobotAgent(LocoMCAgent):
 
     # # FIXME!!!!
     def send_chat(self, chat: str):
-        logging.info("Sending chat: {}".format(chat))
+        logging.info(f"Sending chat: {chat}")
         # Send the socket event to show this reply on dashboard
-        sio.emit("showAssistantReply", {"agent_reply": "Agent: {}".format(chat)})
+        sio.emit("showAssistantReply", {"agent_reply": f"Agent: {chat}"})
         self.memory.add_chat(self.memory.self_memid, chat)
         # actually send the chat, FIXME FOR HACKATHON
         # return self._cpp_send_chat(chat)
@@ -308,7 +309,6 @@ class LocobotAgent(LocoMCAgent):
             1. not been fully started yet
             2. already crashed / shutdown due to other effects
             """
-            pass
         time.sleep(5) # let the other threads die
         os._exit(0) # TODO: remove and figure out why multiprocess sometimes hangs on exit
 
@@ -324,7 +324,7 @@ if __name__ == "__main__":
     sh.setFormatter(log_formatter)
     logger = logging.getLogger()
     logger.addHandler(sh)
-    logging.info("LOG LEVEL: {}".format(logger.level))
+    logging.info(f"LOG LEVEL: {logger.level}")
 
     # Check that models and datasets are up to date
     if not opts.dev:

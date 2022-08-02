@@ -20,25 +20,17 @@ def get_inequality_symbol(iq):
         return ">="
     elif iq == "LESS_THAN_EQUAL":
         return "<="
-    # FIXME deprecate this, just do NOT in an EQUAL
     elif iq == "NOT_EQUAL":
         return "!="
     elif iq == "EQUAL":
         return "="
-    # FIXME deprecate this, better syntax for triples and memids
-    # use . notation? $variable.memid?
     elif iq == "MEMID_EQUAL":
         return "=#="
     else:
         if type(iq) is dict:
             assert iq.get("close_tolerance") or iq.get("modulus")
-            eq = "="
-            if iq.get("modulus"):
-                eq = "%_({})".format(iq["modulus"])
-            if iq.get("close_tolerance"):
-                return eq + "(+-{})".format(iq["close_tolerance"])
-            else:
-                return eq
+            eq = f'%_({iq["modulus"]})' if iq.get("modulus") else "="
+            return eq + f'(+-{iq["close_tolerance"]})' if iq.get("close_tolerance") else eq
 
 
 def convert_triple_to_comparator(triple):
@@ -54,20 +46,19 @@ def convert_triple_to_comparator(triple):
 
         ipdb.set_trace()
         raise Exception("triples currently need a obj_text or obj in FILTERS form")
-    # this is post span/coref resolve
-    if obj:
-        c = {
+    return (
+        {
             "input_left": {"value_extractor": pred_text},
             "input_right": {"value_extractor": obj},
             "comparison_type": "MEMID_EQUAL",
         }
-    else:
-        c = {
+        if obj
+        else {
             "input_left": {"value_extractor": pred_text},
             "input_right": {"value_extractor": obj_text},
             "comparison_type": "EQUAL",
         }
-    return c
+    )
 
 
 def sqlyify_where_clause(c):
@@ -88,17 +79,16 @@ def sqlyify_where_clause(c):
                 input_left = str(clause["input_left"]["value_extractor"])
                 input_right = str(clause["input_right"]["value_extractor"])
                 inequality_symbol = get_inequality_symbol(clause["comparison_type"])
-                s = input_left + " " + inequality_symbol + " " + input_right
+                s = f"{input_left} {inequality_symbol} {input_right}"
                 if clause.get("comparison_measure"):
-                    s = s + " MEASURED_IN " + clause["comparison_measure"] + " "
+                    s = f"{s} MEASURED_IN " + clause["comparison_measure"] + " "
             else:
                 s = sqlyify_where_clause(clause)
             clause_texts.append(s)
-        if k == "NOT":
-            assert len(clause_texts) == 1
-            return "( NOT " + clause_texts[0] + " ) "
-        else:
-            return "(" + (" " + k + " ").join(clause_texts) + ")"
+        if k != "NOT":
+            return "(" + f" {k} ".join(clause_texts) + ")"
+        assert len(clause_texts) == 1
+        return f"( NOT {clause_texts[0]} ) "
 
 
 def new_filters_to_sqly(d):
@@ -129,11 +119,11 @@ def new_filters_to_sqly(d):
     """
     S = "SELECT "
     o = d.get("output", "MEMORY")
-    if o == "MEMORY" or o == "COUNT":
+    if o in ["MEMORY", "COUNT"]:
         S = S + o + " "
     else:
         if o.get("attribute") is None:
-            raise Exception("malformed output dict {}".format(o))
+            raise Exception(f"malformed output dict {o}")
         attrs = o["attribute"]
         if type(attrs) is list and len(attrs) > 1:
             attrs_str = " ( "
@@ -146,19 +136,19 @@ def new_filters_to_sqly(d):
             if (
                 a[0] == "{"
                 or len(a.split()) > 1
-                or any([k in a for k in ["SELECT", "WHERE", "ORDER BY"]])
+                or any(k in a for k in ["SELECT", "WHERE", "ORDER BY"])
             ):
-                a = "(" + a + ")"
+                a = f"({a})"
             attrs_str = attrs_str + a + " "
             if i < len(attrs):
-                attrs_str = attrs_str + ", "
+                attrs_str = f"{attrs_str}, "
         if len(attrs) > 1:
-            attrs_str = attrs_str + " ) "
-        S = S + attrs_str
+            attrs_str = f"{attrs_str} ) "
+        S += attrs_str
     if d.get("memory_type"):
-        S = S + "FROM " + d["memory_type"] + "; "
+        S = f"{S}FROM " + d["memory_type"] + "; "
     if d.get("where_clause"):
-        S = S + "WHERE " + sqlyify_where_clause(d["where_clause"]) + "; "
+        S = f"{S}WHERE " + sqlyify_where_clause(d["where_clause"]) + "; "
     if d.get("selector"):
         return_q = d["selector"].get("return_quantity")
         limit = d["selector"].get("ordinal") or "1"
@@ -166,7 +156,7 @@ def new_filters_to_sqly(d):
             limit = LIMITS[limit]
         if return_q:
             if return_q == "random":
-                S = S + " ORDER BY RANDOM LIMIT " + limit + " "
+                S = f"{S} ORDER BY RANDOM LIMIT {limit} "
             elif return_q.get("argval"):
                 S = (
                     S
@@ -177,11 +167,11 @@ def new_filters_to_sqly(d):
                 S = S + limit + " "
                 S = S + {"MAX": "DESC", "MIN": "ASC"}[return_q["argval"]["polarity"]]
         elif d["selector"].get("location"):
-            S = S + "ORDER BY LOCATION (" + str(d["selector"]["location"]) + "); "
+            S = f"{S}ORDER BY LOCATION (" + str(d["selector"]["location"]) + "); "
         if d["selector"].get("same"):
-            S = S + "; SAME " + selector["same"]
+            S = f"{S}; SAME " + selector["same"]
     if d.get("contains_coreference"):
-        S = S + "CONTAINS_COREFERENCE " + d["contains_coreference"] + ";"
+        S = f"{S}CONTAINS_COREFERENCE " + d["contains_coreference"] + ";"
     return S
 
 
@@ -198,10 +188,10 @@ def close_paren(S, pidx=0):
         c = S.find(")", pidx + 1)
         if c > 0:
             if c < o or o < 0:
-                count = count - 1
+                count -= 1
                 pidx = c
             else:
-                count = count + 1
+                count += 1
                 pidx = o
         else:
             # parens not balanced
@@ -235,14 +225,10 @@ def find_next_block(S, keywords=FILTERS_KW):
     if (kidx < pidx and kidx > 0) or pidx < 0:
         # no parens, current block ends at keyword
         return kidx
-    else:
-        # parens, there might be a child filter inside.
-        # find the close parens and that is end of block
-        pidx = close_paren(S)
-        if pidx > 0:
-            return find_keyword(S, start=pidx, keywords=keywords)
-        else:
-            return -1
+    # parens, there might be a child filter inside.
+    # find the close parens and that is end of block
+    pidx = close_paren(S)
+    return find_keyword(S, start=pidx, keywords=keywords) if pidx > 0 else -1
 
 
 def split_sqly(S, keywords=FILTERS_KW):
@@ -255,7 +241,7 @@ def split_sqly(S, keywords=FILTERS_KW):
     # sanity check
     p = close_paren(S)
     if p < 0 and "(" in S:
-        raise Exception("query {} has unbalanced parens".format(S))
+        raise Exception(f"query {S} has unbalanced parens")
     s = S
     clauses = []
     idx = 0
@@ -301,10 +287,7 @@ def treeify_sqly_where(clause):
         raise Exception("empty clause")
     if len(t) == 1:
         # either a leaf clause or a "NOT"
-        if t[0][:3] == "NOT":
-            return {"NOT": treeify_sqly_where(t[0][4:])}
-        else:
-            return t[0]
+        return {"NOT": treeify_sqly_where(t[0][4:])} if t[0][:3] == "NOT" else t[0]
     conj_list = {"AND": False, "OR": False}
     for i in range(len(t)):
         c = t[i]
@@ -315,13 +298,16 @@ def treeify_sqly_where(clause):
             conj_list["OR"] = True
             t[i] = c[2:].strip()
     if conj_list["OR"] and conj_list["AND"]:
-        raise Exception("AND and OR at same level of clause {}".format(clause))
-    if not (conj_list["OR"] or conj_list["AND"]):
-        raise Exception("multiple blocks in clause but no conjunctions {}".format(clause))
-    if conj_list["OR"]:
-        return {"OR": [treeify_sqly_where(c) for c in t]}
+        raise Exception(f"AND and OR at same level of clause {clause}")
+    if conj_list["OR"] or conj_list["AND"]:
+        return (
+            {"OR": [treeify_sqly_where(c) for c in t]}
+            if conj_list["OR"]
+            else {"AND": [treeify_sqly_where(c) for c in t]}
+        )
+
     else:
-        return {"AND": [treeify_sqly_where(c) for c in t]}
+        raise Exception(f"multiple blocks in clause but no conjunctions {clause}")
 
 
 def convert_where_tree(where_tree):
@@ -367,8 +353,8 @@ def where_leaf_to_comparator(clause):
     # everything will break if clause is complicated enough that it has internal comparators FIXME?
     # not obvious we should be converting those back forth though
     try:
-        assert not (gt_idx > -1 and lt_idx > -1)
-        assert not (eq_idx > -1 and mod_idx > -1)
+        assert gt_idx <= -1 or lt_idx <= -1
+        assert eq_idx <= -1 or mod_idx <= -1
     except:
         import ipdb
 
@@ -415,20 +401,16 @@ def where_leaf_to_comparator(clause):
         if open_paren_idx > -1:
             close_paren_idx = mod_text.find(")", open_paren_idx)
             tol = int(mod_text[open_paren_idx + 3 : close_paren_idx])
-            ct = {"close_tolerance": tol, "modulus": mod}
-        else:
-            ct = {"close_tolerance": tol, "modulus": mod}
+        ct = {"close_tolerance": tol, "modulus": mod}
         right_text = clause[eq_idx + len(mod_text) :]
 
     left_value = maybe_eval_literal(left_text.strip())
     right_value = maybe_eval_literal(right_text.strip())
-    f = {
+    return {
         "input_left": {"value_extractor": left_value},
         "input_right": {"value_extractor": right_value},
         "comparison_type": ct,
     }
-
-    return f
 
 
 def maybe_eval_literal(clause):
@@ -445,7 +427,7 @@ def convert_output_from_sqly(clause, d):
     # FIXME !!! deal with recursion.  what if there is sqly in attribute?
     # can be attribute, or list of simple attributes in form (a; b; c)
     # currently cannot handle a list with a complex (new filters style) attribute
-    if clause == "MEMORY" or clause == "COUNT":
+    if clause in ["MEMORY", "COUNT"]:
         output = clause
     else:
         pidx = close_paren(clause)
@@ -475,14 +457,13 @@ def convert_order_by_from_sqly(clause, d):
     l = clause.find("LOCATION")
     if l == 0:
         d["selector"]["location"] = maybe_eval_literal(clause[9:])
+    elif clause == "RANDOM":
+        d["selector"]["return_quantity"] = "random"
     else:
-        if clause == "RANDOM":
-            d["selector"]["return_quantity"] = "random"
-        else:
-            d["selector"]["return_quantity"] = {"argval": {"quantity": {}}}
-            d["selector"]["return_quantity"]["argval"]["quantity"][
-                "attribute"
-            ] = maybe_eval_literal(clause)
+        d["selector"]["return_quantity"] = {"argval": {"quantity": {}}}
+        d["selector"]["return_quantity"]["argval"]["quantity"][
+            "attribute"
+        ] = maybe_eval_literal(clause)
 
 
 def convert_limit_from_sqly(clause, d):

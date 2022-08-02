@@ -58,10 +58,7 @@ def transform(direction, yaw, pitch, inverted=False, xz_only=False):
     #         |   /
     #         | /
     #         0 -----> x+
-    if not inverted:
-        trans_mat = rpitch @ ryaw
-    else:
-        trans_mat = np.linalg.inv(rpitch @ ryaw)
+    trans_mat = np.linalg.inv(rpitch @ ryaw) if inverted else rpitch @ ryaw
     return trans_mat @ direction
 
 

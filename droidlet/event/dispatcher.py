@@ -5,9 +5,7 @@ import weakref
 def _make_id(target):
     if hasattr(target, "__func__"):
         return (id(target.__self__), id(target.__func__))
-    if isinstance(target, str):
-        return target
-    return id(target)
+    return target if isinstance(target, str) else id(target)
 
 
 NONE_ID = _make_id(None)
@@ -91,7 +89,7 @@ class Signal:
 
         with self.lock:
             self._clear_dead_receivers()
-            if not any(r_key == lookup_key for r_key, _ in self.receivers):
+            if all(r_key != lookup_key for r_key, _ in self.receivers):
                 self.receivers.append((lookup_key, receiver))
             self.sender_receivers_cache.clear()
 
@@ -222,16 +220,14 @@ class Signal:
             with self.lock:
                 self._clear_dead_receivers()
                 senderkey = _make_id(sender)
-                receivers = []
-                for (receiverkey, r_senderkey), receiver in self.receivers:
-                    if r_senderkey == NONE_ID or r_senderkey == senderkey:
-                        receivers.append(receiver)
+                receivers = [
+                    receiver
+                    for (receiverkey, r_senderkey), receiver in self.receivers
+                    if r_senderkey in [NONE_ID, senderkey]
+                ]
+
                 if self.use_caching:
-                    if not receivers:
-                        self.sender_receivers_cache[sender] = NO_RECEIVERS
-                    else:
-                        # Note, we must cache the weakref versions.
-                        self.sender_receivers_cache[sender] = receivers
+                    self.sender_receivers_cache[sender] = receivers or NO_RECEIVERS
         non_weak_receivers = []
         for receiver in receivers:
             if isinstance(receiver, weakref.ReferenceType):

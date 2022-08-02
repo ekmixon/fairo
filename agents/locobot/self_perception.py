@@ -47,8 +47,11 @@ class SelfPerception:
 
     def update_self_memory(self):
         memid = self.agent.memory.self_memid
-        cmd = "UPDATE ReferenceObjects SET eid=?, name=?, x=?,  y=?, z=?, pitch=?, yaw=? WHERE "
-        cmd = cmd + "uuid=?"
+        cmd = (
+            "UPDATE ReferenceObjects SET eid=?, name=?, x=?,  y=?, z=?, pitch=?, yaw=? WHERE "
+            + "uuid=?"
+        )
+
         # using self_memid as eid too
         self.memory.db_write(
             cmd,

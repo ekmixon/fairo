@@ -53,7 +53,7 @@ class FakeMCTime(Time):
         return self.world.count * TICKS_PER_SEC
 
     def add_tick(self, ticks=1):
-        for i in range(ticks):
+        for _ in range(ticks):
             self.world.step()
 
 
@@ -77,8 +77,7 @@ class Dig(FakeCPPAction):
 
     def action(self, x, y, z):
         self.agent.world_interaction_occurred = True
-        dug = self.agent.world.dig((x, y, z))
-        if dug:
+        if dug := self.agent.world.dig((x, y, z)):
             self.agent._changed_blocks.append(((x, y, z), (0, 0)))
             return True
         else:
@@ -90,7 +89,7 @@ class SendChat(FakeCPPAction):
 
     def action(self, chat):
         self.agent.world_interaction_occurred = True
-        logging.info("FakeAgent.send_chat: {}".format(chat))
+        logging.info(f"FakeAgent.send_chat: {chat}")
         self.agent._outgoing_chats.append(chat)
 
 
@@ -173,7 +172,7 @@ class TurnAngle(FakeCPPAction):
         elif angle == -90:
             self.agent.turn_right()
         else:
-            raise ValueError("bad angle={}".format(angle))
+            raise ValueError(f"bad angle={angle}")
 
 
 # FIXME!
@@ -289,8 +288,7 @@ class FakeAgent(LocoMCAgent):
         self.perception_modules["heuristic"] = PerceptionWrapper(
             self, low_level_data=self.low_level_data
         )
-        self.on_demand_perception = {}
-        self.on_demand_perception["check_inside"] = check_inside
+        self.on_demand_perception = {"check_inside": check_inside}
 
     def init_physical_interfaces(self):
         self.dig = Dig(self)
@@ -322,11 +320,13 @@ class FakeAgent(LocoMCAgent):
         dance.add_default_dances(self.memory)
 
     def init_controller(self):
-        dialogue_object_classes = {}
-        dialogue_object_classes["bot_capabilities"] = MCBotCapabilities
-        dialogue_object_classes["interpreter"] = MCInterpreter
-        dialogue_object_classes["get_memory"] = MCGetMemoryHandler
-        dialogue_object_classes["put_memory"] = PutMemoryHandler
+        dialogue_object_classes = {
+            "bot_capabilities": MCBotCapabilities,
+            "interpreter": MCInterpreter,
+            "get_memory": MCGetMemoryHandler,
+            "put_memory": PutMemoryHandler,
+        }
+
         low_level_interpreter_data = {
             'block_data': craftassist_specs.get_block_data(),
             'special_shape_functions': SPECIAL_SHAPE_FNS,
@@ -345,10 +345,11 @@ class FakeAgent(LocoMCAgent):
         self.logical_form = {"logical_form": lf, "chatstr": chatstr, "speaker": speaker}
 
     def step(self):
-        if hasattr(self.world, "step"):
-            if self.world_interaction_occurred or self.count % WORLD_STEP == 0:
-                self.world.step()
-                self.world_interaction_occurred = False
+        if hasattr(self.world, "step") and (
+            self.world_interaction_occurred or self.count % WORLD_STEP == 0
+        ):
+            self.world.step()
+            self.world_interaction_occurred = False
         if hasattr(self, "recorder"):
             self.recorder.record_world()
         super().step()
@@ -394,7 +395,7 @@ class FakeAgent(LocoMCAgent):
     def task_step(self):
         CraftAssistAgent.task_step(self, sleep_time=0)
 
-    def point_at(*args):
+    def point_at(self):
         pass
 
     def perceive(self, force=False):
@@ -526,10 +527,7 @@ class FakeAgent(LocoMCAgent):
     def draw_slice(self, h=None, r=5, c=None):
         if not h:
             h = self.pos[1]
-        if c:
-            c = [c[0], h, c[1]]
-        else:
-            c = [self.pos[0], h, self.pos[2]]
+        c = [c[0], h, c[1]] if c else [self.pos[0], h, self.pos[2]]
         C = self.world.to_world_coords(c)
         A = self.world.to_world_coords(self.pos)
         shifted_agent_pos = [A[0] - C[0] + r, A[2] - C[2] + r]
@@ -567,19 +565,19 @@ class FakeAgent(LocoMCAgent):
             for j in range(width):
                 if npy[i, j] > 0:
                     if npy[i, j] == 1024:
-                        mapslice = mapslice + " A "
+                        mapslice = f"{mapslice} A "
                     else:
                         mapslice = mapslice + str(npy[i, j]).center(3)
                 elif npy[i, j] == 0:
-                    mapslice = mapslice + " * "
+                    mapslice = f"{mapslice} * "
                 else:
-                    npy[i, j] = mapslice + " " + nummobs[npy[i, j]][0] + " "
+                    npy[i, j] = f"{mapslice} {nummobs[npy[i, j]][0]} "
             mapslice = mapslice + "\n"
-            mapslice = mapslice + "   "
+            mapslice = f"{mapslice}   "
             for j in range(width):
-                mapslice = mapslice + " * "
+                mapslice = f"{mapslice} * "
             mapslice = mapslice + "\n"
-        mapslice = mapslice + "   "
+        mapslice = f"{mapslice}   "
         for j in range(width):
             mapslice = mapslice + str(zs(j)).center(3)
 
@@ -644,10 +642,9 @@ class FakePlayer(FakeAgent):
             CraftAssistAgent.controller_step(self)
             query = "SELECT MEMORY FROM Task WHERE ((prio >= 0) AND (paused <= 0))"
             _, task_mems = self.memory.basic_search(query)
-            if not task_mems:
-                if len(self.lf_list) > 0:
-                    self.logical_form = self.lf_list[0]
-                    del self.lf_list[0]
+            if not task_mems and len(self.lf_list) > 0:
+                self.logical_form = self.lf_list[0]
+                del self.lf_list[0]
         else:  # logical form given directly:
             logical_form = self.logical_form["logical_form"]
             chatstr = self.logical_form["chatstr"]
@@ -690,12 +687,7 @@ class FakePlayer(FakeAgent):
             xz = np.random.randint(0, world.sl, (2,))
             slice = self.world.blocks[xz[0], :, xz[1], 0]
             nz = np.flatnonzero(slice)
-            if len(nz) == 0:
-                # player will be floating, but why no floor here?
-                h = 0
-            else:
-                # if top block is nonzero player will be trapped
-                h = nz[-1]
+            h = 0 if len(nz) == 0 else nz[-1]
             off = self.world.coord_shift
             self.pos = np.array(
                 (float(xz[0]) + off[0], float(h + 1) + off[1], float(xz[1]) + off[2]), dtype="int"

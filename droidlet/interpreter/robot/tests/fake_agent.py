@@ -202,19 +202,15 @@ class Drop(FakeMoverCommand):
             for obj in self.agent.world.objects:
                 self.agent.world.detach_object_from_agent(obj, self.agent)
             self.gripper_state = "open"
-            self.finished = True
-            return self.finished
-        else:
-            # TODO some sort of failure notice
-            self.finished = True
-            return self.finished
+        self.finished = True
+        return self.finished
 
 
 class SendChat(FakeMoverCommand):
     NAME = "send_chat"
 
     def action(self, chat):
-        logging.info("FakeAgent.send_chat: {}".format(chat))
+        logging.info(f"FakeAgent.send_chat: {chat}")
         self.finished = True
         self.agent._outgoing_chats.append(chat)
         return self.finished
@@ -335,10 +331,7 @@ class FakeMover:
     #        self.close_gripper = CloseGripper(agent)
 
     def bot_step(self):
-        if not self.current_action:
-            return True
-        else:
-            return self.current_action.step()
+        return self.current_action.step() if self.current_action else True
 
     def is_object_in_gripper(self):
         return self.gripper_state == "occupied"
@@ -432,10 +425,12 @@ class FakeAgent(LocoMCAgent):
         dance.add_default_dances(self.memory)
 
     def init_controller(self):
-        dialogue_object_classes = {}
-        dialogue_object_classes["interpreter"] = LocoInterpreter
-        dialogue_object_classes["get_memory"] = LocoGetMemoryHandler
-        dialogue_object_classes["put_memory"] = PutMemoryHandler
+        dialogue_object_classes = {
+            "interpreter": LocoInterpreter,
+            "get_memory": LocoGetMemoryHandler,
+            "put_memory": PutMemoryHandler,
+        }
+
         self.dialogue_manager = DialogueManager(
             memory=self.memory,
             dialogue_object_classes=dialogue_object_classes,
@@ -494,21 +489,20 @@ class FakeAgent(LocoMCAgent):
             return None
 
     def get_info(self):
-        info = {}
-        # todo self.pos ---> self.camera_pos, self.base_pos
-        info["pos"] = self.pos
-        info["pitch"] = self.pitch
-        info["yaw"] = self.yaw
-        info["pan"] = self.pan
-        info["base_yaw"] = self.base_yaw
-        info["name"] = self.name
-        return info
+        return {
+            "pos": self.pos,
+            "pitch": self.pitch,
+            "yaw": self.yaw,
+            "pan": self.pan,
+            "base_yaw": self.base_yaw,
+            "name": self.name,
+        }
 
     ########################
     ##  FAKE .PY METHODS  ##
     ########################
 
-    def point_at(*args):
+    def point_at(self):
         pass
 
     # TODO mirror this logic in real locobot
@@ -516,7 +510,7 @@ class FakeAgent(LocoMCAgent):
         c = self.chat_count
         for raw_chatstr in self.world.chat_log[c:]:
             match = re.search("^<([^>]+)> (.*)", raw_chatstr)
-            speaker_name = match.group(1)
+            speaker_name = match[1]
             if not self.memory.get_player_by_name(speaker_name):
                 # FIXME! name used as eid
                 PlayerNode.create(
@@ -527,8 +521,7 @@ class FakeAgent(LocoMCAgent):
         return self.world.chat_log[c:].copy()
 
     def get_player_struct_by_name(self, speaker_name):
-        p = self.memory.get_player_by_name(speaker_name)
-        if p:
+        if p := self.memory.get_player_by_name(speaker_name):
             return p.get_struct()
         else:
             return None

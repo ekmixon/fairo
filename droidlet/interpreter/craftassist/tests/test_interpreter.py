@@ -49,7 +49,8 @@ class TwoCubesInterpreterTest(BaseCraftassistTestCase):
 
         # Check that cube_right is destroyed
         self.assertEqual(
-            set(self.get_idm_at_locs(strip_idmeta(self.cube_right)).values()), set([(0, 0)])
+            set(self.get_idm_at_locs(strip_idmeta(self.cube_right)).values()),
+            {(0, 0)},
         )
 
     def test_copy_that(self):
@@ -102,7 +103,7 @@ class TwoCubesInterpreterTest(BaseCraftassistTestCase):
 
         # check that a Build was added with a gold blocks
         self.assertGreater(len(changes), 0)
-        self.assertEqual(set(changes.values()), set([(41, 0)]))
+        self.assertEqual(set(changes.values()), {(41, 0)})
 
     def test_go_to_the_tree(self):
         d = MOVE_COMMANDS["go to the tree"]
@@ -118,7 +119,7 @@ class TwoCubesInterpreterTest(BaseCraftassistTestCase):
     def test_build_square_has_height(self):
         d = BUILD_COMMANDS["build a square with height 1"]
         changes = self.handle_logical_form(d)
-        ys = set([y for (x, y, z) in changes.keys()])
+        ys = {y for (x, y, z) in changes.keys()}
         self.assertEqual(len(ys), 1)  # height 1
 
     def test_action_sequence_order(self):
@@ -169,7 +170,7 @@ class DigTest(BaseCraftassistTestCase):
         # check agent changed a block:
         self.assertGreater(len(changes), 0)
         # check that all changes replaced blocks with air:
-        assert not any([l[0] for l in list(changes.values())])
+        assert not any(l[0] for l in list(changes.values()))
 
     def test_n_by_n_dig(self):
         logical_form = DIG_COMMANDS["dig a 3 x 3 hole"]
@@ -177,7 +178,7 @@ class DigTest(BaseCraftassistTestCase):
         # check that block changes are >= 5 in our fake world
         self.assertEqual(len(changes), 9)
         # check that all changes replaced blocks with air:
-        assert not any([l[0] for l in list(changes.values())])
+        assert not any(l[0] for l in list(changes.values()))
         
 
 # doesn't actually check if the bot dances, just if it crashes FIXME!
@@ -202,7 +203,7 @@ class ModifyTest(BaseCraftassistTestCase):
         self.set_looking_at(self.cube_right[0][0])
 
     def gen_modify(self, modify_dict):
-        d = {
+        return {
             "dialogue_type": "HUMAN_GIVE_COMMAND",
             "action_sequence": [
                 {
@@ -212,7 +213,6 @@ class ModifyTest(BaseCraftassistTestCase):
                 }
             ],
         }
-        return d
 
     def test_modify(self):
         bigger = {"modify_type": "SCALE", "categorical_scale_factor": "BIGGER"}
@@ -337,21 +337,21 @@ class FillTest(BaseCraftassistTestCase):
         self.set_looking_at(self.hole_poss[0])
 
     def test_looking_at(self):
-        self.assertEqual(set(self.get_idm_at_locs(self.hole_poss).values()), set([(0, 0)]))
+        self.assertEqual(set(self.get_idm_at_locs(self.hole_poss).values()), {(0, 0)})
 
     def test_fill_that(self):
         d = FILL_COMMANDS["fill where I am looking"]
         self.handle_logical_form(d)
 
         # Make sure hole is filled
-        self.assertEqual(set(self.get_idm_at_locs(self.hole_poss).values()), set([(3, 0)]))
+        self.assertEqual(set(self.get_idm_at_locs(self.hole_poss).values()), {(3, 0)})
 
     def test_fill_with_block_type(self):
         d = FILL_COMMANDS["fill where I am looking with gold"]
         self.handle_logical_form(d)
 
         # Make sure hole is filled with gold
-        self.assertEqual(set(self.get_idm_at_locs(self.hole_poss).values()), set([(41, 0)]))
+        self.assertEqual(set(self.get_idm_at_locs(self.hole_poss).values()), {(41, 0)})
 
     def test_fill_all_holes_no_holes(self):
         self.set_blocks([(pos, (3, 0)) for pos in self.hole_poss])

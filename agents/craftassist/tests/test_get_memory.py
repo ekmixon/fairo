@@ -68,7 +68,7 @@ class GetMemoryTestCase(BaseCraftassistTestCase):
 
         # check that proper chat was sent
         self.assertIn("build", self.last_outgoing_chat())
-        assert not "dance" in self.last_outgoing_chat()
+        assert "dance" not in self.last_outgoing_chat()
 
     def test_what_are_you_building(self):
         # start building a cube

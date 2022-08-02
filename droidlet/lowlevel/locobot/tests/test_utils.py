@@ -25,8 +25,9 @@ def assert_distance_moved(pos1, pos2, movement_vector):
 def assert_turn_degree(initial_yaw, final_yaw, turn_degree):
     """Asserts the difference in final and initial yaws is degree."""
     logging.info(
-        "{}, {}, {}".format(math.degrees(initial_yaw), math.degrees(final_yaw), turn_degree)
+        f"{math.degrees(initial_yaw)}, {math.degrees(final_yaw)}, {turn_degree}"
     )
+
     initial_d = math.degrees(initial_yaw) % 360
     final_d = math.degrees(final_yaw) % 360
     expect_fd = (initial_d + turn_degree) % 360

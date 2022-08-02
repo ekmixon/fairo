@@ -54,30 +54,31 @@ SHAPE_NAMES = [
 
 
 def bid():
-    allowed_blocks = {}
-    allowed_blocks[1] = list(range(7))
-    allowed_blocks[4] = [0]
-    allowed_blocks[5] = list(range(6))
-    allowed_blocks[12] = list(range(2))
-    allowed_blocks[17] = list(range(4))
-    allowed_blocks[18] = list(range(4))
-    allowed_blocks[20] = [0]
-    allowed_blocks[22] = [0]
-    allowed_blocks[24] = list(range(3))
-    allowed_blocks[34] = [0]
-    allowed_blocks[35] = list(range(16))
-    allowed_blocks[41] = [0]
-    allowed_blocks[42] = [0]
-    allowed_blocks[43] = list(range(8))
-    allowed_blocks[45] = [0]
-    allowed_blocks[48] = [0]
-    allowed_blocks[49] = [0]
-    allowed_blocks[57] = [0]
-    allowed_blocks[95] = list(range(16))
-    allowed_blocks[133] = [0]
-    allowed_blocks[155] = list(range(3))
-    allowed_blocks[159] = list(range(16))
-    allowed_blocks[169] = [0]
+    allowed_blocks = {
+        1: list(range(7)),
+        4: [0],
+        5: list(range(6)),
+        12: list(range(2)),
+        17: list(range(4)),
+        18: list(range(4)),
+        20: [0],
+        22: [0],
+        24: list(range(3)),
+        34: [0],
+        35: list(range(16)),
+        41: [0],
+        42: [0],
+        43: list(range(8)),
+        45: [0],
+        48: [0],
+        49: [0],
+        57: [0],
+        95: list(range(16)),
+        133: [0],
+        155: list(range(3)),
+        159: list(range(16)),
+        169: [0],
+    }
 
     b = random.choice(list(allowed_blocks))
     m = random.choice(allowed_blocks[b])
@@ -201,10 +202,16 @@ def options_rectanguloid_frame():
 
 
 def shape_to_dicts(S):
-    blocks = [
-        {"x": s[0][0], "y": s[0][1], "z": s[0][2], "id": s[1][0], "meta": s[1][1]} for s in S
+    return [
+        {
+            "x": s[0][0],
+            "y": s[0][1],
+            "z": s[0][2],
+            "id": s[1][0],
+            "meta": s[1][1],
+        }
+        for s in S
     ]
-    return blocks
 
 
 # Map shape name to option function
@@ -236,7 +243,7 @@ def build_shape_scene():
     num_shapes = 5
     blocks = []
     block_xyz_set = set()
-    for t in range(num_shapes):
+    for _ in range(num_shapes):
         offsets = [0, 63, 0]
         for i in range(3):
             offsets[i] += np.random.randint(-offset_range[i], offset_range[i] + 1)
@@ -251,7 +258,7 @@ def build_shape_scene():
             )
             for x in S
         ]
-        s = set([x[0] for x in S])
+        s = {x[0] for x in S}
         if not set.intersection(s, block_xyz_set):
             block_xyz_set = set.union(block_xyz_set, s)
             blocks.extend(shape_to_dicts(S))

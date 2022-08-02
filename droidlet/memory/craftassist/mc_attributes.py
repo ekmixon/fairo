@@ -33,8 +33,9 @@ class VoxelCounter(Attribute):
                 + ")"
             )
             _, block_type_mems = self.memory.basic_search(
-                "SELECT MEMORY FROM BlockType WHERE " + block_type_triples
+                f"SELECT MEMORY FROM BlockType WHERE {block_type_triples}"
             )
+
             allowed_idm_list = [(b.b, b.m) for b in block_type_mems]
 
             def allowed_idm(idm):  # noqa
@@ -51,7 +52,7 @@ class VoxelCounter(Attribute):
                     # FIXME?:
                     triple_objs = [t[2] for t in self.memory.get_triples(subj=mems[i].memid)]
                     desired_objs = [t["obj_text"] for t in self.block_data]
-                    if all([t in triple_objs for t in desired_objs]):
+                    if all(t in triple_objs for t in desired_objs):
                         count = len(mems[i].blocks)
                 else:
                     count = len(mems[i].blocks)
@@ -61,4 +62,4 @@ class VoxelCounter(Attribute):
         return counts
 
     def __repr__(self):
-        return "VoxelCounter " + str(self.block_data)
+        return f"VoxelCounter {str(self.block_data)}"

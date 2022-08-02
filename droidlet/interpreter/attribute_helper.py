@@ -34,8 +34,7 @@ def interpret_span_value(interpreter, speaker, d, comparison_measure=None):
     the optional arg comparison_measure should be something that can be handled by
     the convert_comparison_value function
     """
-    num = number_from_span(d)
-    if num:
+    if num := number_from_span(d):
         v = FixedValue(interpreter.memory, num)
         # always convert everything to internal units
         # FIXME handle this better
@@ -61,34 +60,30 @@ def maybe_specific_mem(interpreter, speaker, ref_obj_d):
         return cands[0], None
     filters_d = ref_obj_d.get("filters", {})
     coref = filters_d.get("contains_coreference", "NULL")
-    if coref != "NULL":
-        # this is a particular entity etc, don't search for the mem at check() time
-        if isinstance(coref, ReferenceObjectNode):
-            mem = coref
-        else:
-            sub_ref_obj_d = deepcopy(ref_obj_d)
-            # del this to stop recursion, otherwise will end up here again
-            del sub_ref_obj_d["filters"]["contains_coreference"]
-            cands = interpreter.subinterpret["reference_objects"](
-                interpreter, speaker, sub_ref_obj_d
-            )
-            if not cands:
-                # FIXME fix this error
-                raise ErrorWithResponse(
-                    "I don't know which objects' attribute you are talking about"
-                )
-            # FIXME! if more than one? ask? use the filters?
-            else:
-                mem = cands[0]
-    else:
+    if coref == "NULL":
         # this object is only defined by the filters and might be different at different moments
         # FIXME use FILTERS!!
         # should interpret as normal filter at this point...
         tags, _ = backoff_where(filters_d.get("where_clause", {}))
         if tags:
-            where = " AND ".join(["(has_tag={})".format(tag) for tag in tags])
-            query = "SELECT MEMORY FROM ReferenceObject WHERE (" + where + ")"
+            where = " AND ".join([f"(has_tag={tag})" for tag in tags])
+            query = f"SELECT MEMORY FROM ReferenceObject WHERE ({where})"
 
+    elif isinstance(coref, ReferenceObjectNode):
+        mem = coref
+    else:
+        sub_ref_obj_d = deepcopy(ref_obj_d)
+        # del this to stop recursion, otherwise will end up here again
+        del sub_ref_obj_d["filters"]["contains_coreference"]
+        if cands := interpreter.subinterpret["reference_objects"](
+            interpreter, speaker, sub_ref_obj_d
+        ):
+            mem = cands[0]
+        else:
+            # FIXME fix this error
+            raise ErrorWithResponse(
+                "I don't know which objects' attribute you are talking about"
+            )
     return mem, query
 
 
@@ -109,12 +104,10 @@ def interpret_linear_extent(interpreter, speaker, d, force_value=False):
         frame = frame.get("player_span", "unknown_player")
     if frame == "AGENT":
         location_data["frame"] = "AGENT"
+    elif p := interpreter.memory.get_player_by_name(frame):
+        location_data["frame"] = p.eid
     else:
-        p = interpreter.memory.get_player_by_name(frame)
-        if p:
-            location_data["frame"] = p.eid
-        else:
-            raise ErrorWithResponse("I don't understand in whose frame of reference you mean")
+        raise ErrorWithResponse("I don't understand in whose frame of reference you mean")
     location_data["relative_direction"] = d.get("relative_direction", "AWAY")
     # FIXME!!!! has_measure
 
@@ -128,10 +121,12 @@ def interpret_linear_extent(interpreter, speaker, d, force_value=False):
     mem, _ = maybe_specific_mem(interpreter, speaker, rd)
     # FIXME this does not allow searching at run time, only at build time!
     if not mem:
-        mems = interpreter.subinterpret["reference_objects"](interpreter, speaker, rd)
-        if not mems:
+        if mems := interpreter.subinterpret["reference_objects"](
+            interpreter, speaker, rd
+        ):
+            mem = mems[0]
+        else:
             raise ErrorWithResponse("I don't know what you're referring to")
-        mem = mems[0]
     #        # should we do this?
     #        if not f.get("selector"):
     #            f["selector"] = (
@@ -160,12 +155,12 @@ def interpret_task_info(interpreter, speaker, d):
     # "task_info": {"reference_object": ATTRIBUTE}
     task_info = d.get("task_info")
     if not task_info:
-        raise ValueError("task info malformed: {}".format(task_info))
+        raise ValueError(f"task info malformed: {task_info}")
     ref_obj_attr_d = task_info.get("reference_object")
     if not ref_obj_attr_d:
-        raise ValueError("task info malformed: {}".format(task_info))
+        raise ValueError(f"task info malformed: {task_info}")
     if not ref_obj_attr_d.get("attribute"):
-        raise ValueError("task info malformed: {}".format(task_info))
+        raise ValueError(f"task info malformed: {task_info}")
 
     # we probably should rearrange FILTERS spec so that the task ref obj is the returned memory, not the task...
     get_refobj = TripleWalk(interpreter.memory, [("task_reference_object", "obj_variable")])
@@ -178,24 +173,17 @@ def interpret_task_info(interpreter, speaker, d):
 class AttributeInterpreter:
     def __call__(self, interpreter, speaker, d_attribute, get_all=False):
         if type(d_attribute) is str:
-            if (
-                d_attribute.lower() == "height"
-                or d_attribute.lower() == "width"
-                or d_attribute.lower() == "height"
-                or d_attribute.lower() == "size"
-            ):
+            if d_attribute.lower() in ["height", "width", "height", "size"]:
                 return BBoxSize(interpreter.memory, d_attribute.lower())
             d_attribute = d_attribute.lower()
-            canonicalized = CANONICALIZE_ATTRIBUTES.get(d_attribute)
-            if canonicalized:
-                if type(canonicalized) is str:
-                    # FIXME!!! merge/backoff to things like get_property_value
-                    return TableColumn(interpreter.memory, canonicalized, get_all=get_all)
-                elif canonicalized and type(canonicalized) is list:
-                    alist = [self.__call__(interpreter, speaker, a) for a in canonicalized]
-                    return ListAttribute(interpreter.memory, alist)
-            else:
+            if not (canonicalized := CANONICALIZE_ATTRIBUTES.get(d_attribute)):
                 return TableColumn(interpreter.memory, d_attribute, get_all=get_all)
+            if type(canonicalized) is str:
+                # FIXME!!! merge/backoff to things like get_property_value
+                return TableColumn(interpreter.memory, canonicalized, get_all=get_all)
+            elif type(canonicalized) is list:
+                alist = [self.__call__(interpreter, speaker, a) for a in canonicalized]
+                return ListAttribute(interpreter.memory, alist)
         elif d_attribute.get("task_info"):
             return interpret_task_info(interpreter, speaker, d_attribute)
         elif d_attribute.get("linear_extent"):

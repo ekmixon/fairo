@@ -9,7 +9,7 @@ def yzx_to_dicts(yzx, y_offset=63):
     yzx = yzx["schematic"]
     ysize, zsize, xsize, _ = yzx.shape
     if ysize + y_offset > 255:
-        raise ValueError("Shape is too big {}".format(yzx.shape))
+        raise ValueError(f"Shape is too big {yzx.shape}")
     blocks = []
     for y in range(ysize):
         for z in range(zsize):
@@ -25,6 +25,6 @@ def dicts_to_lua(dicts):
     """Convert the dictionary to lua format"""
     block_strs = []
     for d in dicts:
-        s = "{" + ",".join("{}".format(d[k]) for k in ["x", "y", "z", "id", "meta"]) + "}"
+        s = "{" + ",".join(f"{d[k]}" for k in ["x", "y", "z", "id", "meta"]) + "}"
         block_strs.append(s)
     return "{" + ",".join(block_strs) + "}"

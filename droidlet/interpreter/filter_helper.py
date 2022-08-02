@@ -48,11 +48,10 @@ def get_val_map(interpreter, speaker, filters_d, get_all=False):
 
 
 def maybe_append_left(F, to_append=None):
-    if to_append is not None:
-        to_append.append(F)
-        return to_append
-    else:
+    if to_append is None:
         return F
+    to_append.append(F)
+    return to_append
 
 
 def maybe_handle_specific_mem(interpreter, speaker, filters_d, val_map):
@@ -65,10 +64,7 @@ def maybe_handle_specific_mem(interpreter, speaker, filters_d, val_map):
         mem, _ = maybe_specific_mem(interpreter, speaker, {"filters": filters_d})
         if mem:
             F = FixedMemFilter(interpreter.memory, mem.memid)
-    if F is not None:
-        return maybe_append_left(F, to_append=val_map)
-    else:
-        return None
+    return maybe_append_left(F, to_append=val_map) if F is not None else None
 
 
 def interpret_where_clause(
@@ -79,15 +75,22 @@ def interpret_where_clause(
     COMPARATOR, TRIPLE, or {CONJUNCTION, [where_clauses]}
     where each CONJUCTION is either "AND", "OR", or "NOT"
     """
-    subclause = where_d.get("AND") or where_d.get("OR") or where_d.get("NOT")
-    if subclause:
-        clause_filters = []
-        for c in subclause:
-            clause_filters.append(
-                interpret_where_clause(
-                    interpreter, speaker, c, memory_type=memory_type, ignore_self=ignore_self
-                )
+    if (
+        subclause := where_d.get("AND")
+        or where_d.get("OR")
+        or where_d.get("NOT")
+    ):
+        clause_filters = [
+            interpret_where_clause(
+                interpreter,
+                speaker,
+                c,
+                memory_type=memory_type,
+                ignore_self=ignore_self,
             )
+            for c in subclause
+        ]
+
         if "AND" in where_d:
             return AndFilter(interpreter.memory, clause_filters)
         elif "OR" in where_d:
@@ -97,10 +100,9 @@ def interpret_where_clause(
                 assert len(clause_filters) == 1
             except:
                 raise Exception(
-                    "tried to make a NOT filter with a list of clauses longer than 1 {}".format(
-                        where_d
-                    )
+                    f"tried to make a NOT filter with a list of clauses longer than 1 {where_d}"
                 )
+
             return NotFilter(interpreter.memory, clause_filters)
     if where_d.get("input_left"):
         # this is a comparator leaf
@@ -144,10 +146,9 @@ def interpret_random_selector(interpreter, speaker, selector_d):
         n = int(n)
     except:
         raise Exception(
-            "malformed selector dict {}, tried to get random number {} ".format(
-                selector_d, random_num
-            )
+            f"malformed selector dict {selector_d}, tried to get random number {random_num} "
         )
+
     s = selector_d.get("same", "ALLOWED")
     return RandomMemorySelector(interpreter.memory, same=s, n=n)
 
@@ -157,10 +158,9 @@ def interpret_argval_selector(interpreter, speaker, selector_d):
     argval_d = return_d.get("argval")
     if not argval_d:
         raise Exception(
-            "tried to build argval selector from logical form without argval clause {}".format(
-                selector_d
-            )
+            f"tried to build argval selector from logical form without argval clause {selector_d}"
         )
+
     polarity = "arg" + argval_d.get("polarity").lower()
     attribute_d = argval_d.get("quantity").get("attribute")
     get_attribute = interpreter.subinterpret.get("attribute", AttributeInterpreter())
@@ -213,31 +213,31 @@ def interpret_selector(interpreter, speaker, selector_d):
     if selector_d.get("location"):
         return build_linear_extent_selector(interpreter, speaker, selector_d["location"])
     return_d = selector_d.get("return_quantity", "ALL")
-    if type(return_d) is str:
-        if return_d == "ALL":
-            # no selector, just return everything
-            pass
-        elif return_d == "RANDOM":
-            selector = interpret_random_selector(interpreter, speaker, selector_d)
-        else:
-            raise Exception("malformed selector dict {}".format(selector_d))
+    if type(return_d) is str and return_d == "ALL":
+        # no selector, just return everything
+        pass
+    elif type(return_d) is str and return_d == "RANDOM":
+        selector = interpret_random_selector(interpreter, speaker, selector_d)
+    elif (
+        type(return_d) is str
+        and return_d != "ALL"
+        and return_d != "RANDOM"
+        or type(return_d) is not str
+        and not (argval_d := return_d.get("argval"))
+    ):
+        raise Exception(f"malformed selector dict {selector_d}")
     else:
-        argval_d = return_d.get("argval")
-        if argval_d:
-            selector = interpret_argval_selector(interpreter, speaker, selector_d)
-        else:
-            raise Exception("malformed selector dict {}".format(selector_d))
+        selector = interpret_argval_selector(interpreter, speaker, selector_d)
     return selector
 
 
 def maybe_apply_selector(interpreter, speaker, filters_d, F):
     selector_d = filters_d.get("selector", {})
     selector = interpret_selector(interpreter, speaker, selector_d)
-    if selector is not None:
-        selector.append(F)
-        return selector
-    else:
+    if selector is None:
         return F
+    selector.append(F)
+    return selector
 
 
 # FIXME!  update DSL so this is unnecessary
@@ -248,37 +248,36 @@ def convert_task_where(where_clause):
     returns the modified where_clause dict
     """
     new_where_clause = deepcopy(where_clause)
-    # doesn't check if where_clause is well formed
-    subwhere = where_clause.get("AND") or where_clause.get("OR") or where_clause.get("NOT")
-    if subwhere:  # recurse
+    if (
+        subwhere := where_clause.get("AND")
+        or where_clause.get("OR")
+        or where_clause.get("NOT")
+    ):
         conj = list(where_clause.keys())[0]
         for i in range(len(subwhere)):
             new_where_clause[conj][i] = convert_task_where(where_clause[conj][i])
-    else:  # a leaf
-        if "input_left" in where_clause:  # a comparator, leave alone
-            pass
-        else:  # triple...
-            o = where_clause.get("obj_text").lower()
-            if o == "currently_running":
-                new_where_clause = {
-                    "input_left": {"value_extractor": {"attribute": "running"}},
-                    "input_right": {"value_extractor": "1"},
-                    "comparison_type": "EQUAL",
-                }
-            elif o == "paused":
-                new_where_clause = {
-                    "input_left": {"value_extractor": {"attribute": "paused"}},
-                    "input_right": {"value_extractor": "1"},
-                    "comparison_type": "EQUAL",
-                }
-            elif o == "finished":
-                new_where_clause = {
-                    "input_left": {"value_extractor": {"attribute": "finished"}},
-                    "input_right": {"value_extractor": "0"},
-                    "comparison_type": "GREATER_THAN",
-                }
-            else:
-                new_where_clause["obj_text"] = o
+    elif "input_left" not in where_clause:
+        o = where_clause.get("obj_text").lower()
+        if o == "currently_running":
+            new_where_clause = {
+                "input_left": {"value_extractor": {"attribute": "running"}},
+                "input_right": {"value_extractor": "1"},
+                "comparison_type": "EQUAL",
+            }
+        elif o == "paused":
+            new_where_clause = {
+                "input_left": {"value_extractor": {"attribute": "paused"}},
+                "input_right": {"value_extractor": "1"},
+                "comparison_type": "EQUAL",
+            }
+        elif o == "finished":
+            new_where_clause = {
+                "input_left": {"value_extractor": {"attribute": "finished"}},
+                "input_right": {"value_extractor": "0"},
+                "comparison_type": "GREATER_THAN",
+            }
+        else:
+            new_where_clause["obj_text"] = o
     return new_where_clause
 
 
@@ -325,17 +324,16 @@ class FilterInterpreter:
                 speaker,
                 filters_d.get("where_clause", {}),
                 memory_type="ReferenceObject",
-                ignore_self=not ("SELF" in tags),
+                ignore_self="SELF" not in tags,
             )
+
         elif memtype == "TASKS":
             F = interpret_task_filter(interpreter, speaker, filters_d)
         else:
-            memtype_key = memtype.lower() + "_filters"
+            memtype_key = f"{memtype.lower()}_filters"
             try:
                 F = interpreter.subinterpret[memtype_key](interpreter, speaker, filters_d)
             except:
-                raise ErrorWithResponse(
-                    "failed at interpreting filters of type {}".format(memtype)
-                )
+                raise ErrorWithResponse(f"failed at interpreting filters of type {memtype}")
         F = maybe_apply_selector(interpreter, speaker, filters_d, F)
         return maybe_append_left(F, to_append=val_map)

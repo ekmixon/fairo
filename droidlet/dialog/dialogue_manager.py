@@ -90,14 +90,10 @@ class DialogueManager(object):
 
         """
         start_time = datetime.datetime.now()
-        # chat is a single line command
-        chat_list = self.get_last_m_chats(m=1)
-        # TODO: this can be moved to get_d_o
-
-        if chat_list:
+        if chat_list := self.get_last_m_chats(m=1):
             # TODO: remove this and have mapper take in full list
             speaker, chatstr, logical_form, chat_status, chat_memid = chat_list[0]
-            logging.debug("Dialogue stack pre-run_model: {}".format(self.dialogue_stack.stack))
+            logging.debug(f"Dialogue stack pre-run_model: {self.dialogue_stack.stack}")
 
             # NOTE: the model is responsible for not putting a new
             # object on the stack if it sees that whatever is on

@@ -17,9 +17,7 @@ class Pos:
 
 def pos_to_np(pos):
     """Convert pos to numpy array."""
-    if pos is None:
-        return None
-    return np.array((pos.x, pos.y, pos.z))
+    return None if pos is None else np.array((pos.x, pos.y, pos.z))
 
 
 def check_username(hashed_username, username):

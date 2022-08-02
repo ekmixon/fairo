@@ -49,6 +49,4 @@ def bin_points(XYZ_cm, map_size, z_bins, xy_resolution):
     count = np.bincount(
         ind.ravel(), isvalid.ravel().astype(np.int32), minlength=map_size * map_size * n_z_bins
     )
-    counts = np.reshape(count, [map_size, map_size, n_z_bins])
-
-    return counts
+    return np.reshape(count, [map_size, map_size, n_z_bins])

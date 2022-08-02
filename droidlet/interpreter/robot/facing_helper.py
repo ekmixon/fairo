@@ -59,24 +59,22 @@ class FacingInterpreter:
                 left = "left" in d["relative_yaw"] or "leave" in d["relative_yaw"]  # lemmatizer :)
                 degrees = number_from_span(d["relative_yaw"]) or 90
                 # these are different than mc for no reason...? mc uses relative_yaw, these use yaw
-                if degrees > 0 and left:
-                    return {"yaw": -degrees}
-                else:
-                    return {"yaw": degrees}
+                return {"yaw": -degrees} if degrees > 0 and left else {"yaw": degrees}
             else:
                 try:
-                    deg = int(d["relative_yaw"])
-                    return {"yaw": deg}
+                    return {"yaw": int(d["relative_yaw"])}
                 except:
                     pass
         elif d.get("relative_pitch"):
             if "down" in d["relative_pitch"] or "up" in d["relative_pitch"]:
                 down = "down" in d["relative_pitch"]
                 degrees = number_from_span(d["relative_pitch"]) or 90
-                if degrees > 0 and down:
-                    return {"relative_pitch": -degrees}
-                else:
-                    return {"relative_pitch": degrees}
+                return (
+                    {"relative_pitch": -degrees}
+                    if degrees > 0 and down
+                    else {"relative_pitch": degrees}
+                )
+
             else:
                 # TODO in the task make this relative!
                 try:

@@ -42,11 +42,11 @@ class ForkedPdb(pdb.Pdb):
 class CraftAssistSwarmWorker(CraftAssistAgent):
     def __init__(self, opts, idx, memory_send_queue, memory_receive_queue, query_from_worker):
         self.agent_idx = idx
-        self.task_stacks = dict()
+        self.task_stacks = {}
         self.task_ghosts = []
-        self.prio = dict()
-        self.running = dict()
-        self.pause = dict()
+        self.prio = {}
+        self.running = {}
+        self.pause = {}
         self.memory_send_queue = memory_send_queue
         self.memory_receive_queue = memory_receive_queue
         self.query_from_worker = query_from_worker
@@ -61,10 +61,12 @@ class CraftAssistSwarmWorker(CraftAssistAgent):
         self.perception_modules["low_level"] = SwarmLowLevelMCPerception(self)
 
     def init_memory(self):
-        self.memory = SwarmWorkerMemory(agent_time=MCTime(self.get_world_time),
-                                        memory_send_queue=self.memory_send_queue,
-                                        memory_receive_queue=self.memory_receive_queue,
-                                        memory_tag="swarm_worker_{}".format(self.agent_idx))
+        self.memory = SwarmWorkerMemory(
+            agent_time=MCTime(self.get_world_time),
+            memory_send_queue=self.memory_send_queue,
+            memory_receive_queue=self.memory_receive_queue,
+            memory_tag=f"swarm_worker_{self.agent_idx}",
+        )
 
     def init_controller(self):
         """Initialize all controllers"""
@@ -75,21 +77,13 @@ class CraftAssistSwarmWorker(CraftAssistAgent):
             v.perceive(force=force)
     
     def preprocess_data(self, task_name, task_data):
-        if "task_data" in task_data:
-            return task_data["task_data"]
-        else:
-            return task_data
+        return task_data["task_data"] if "task_data" in task_data else task_data
 
     def check_task_info(self, task_name, task_data):
         if task_name not in TASK_INFO.keys():
             logging.info("task {} received without checking arguments")
             return True
-        for key in TASK_INFO[task_name.lower()]:
-            if key not in task_data:
-            #     if "task_data" in task_data and key in task_data["task_data"]:
-            #         continue
-                return False
-        return True
+        return all(key in task_data for key in TASK_INFO[task_name.lower()])
 
     def send_task_updates(self, task_updates):
         # TODO: send task updates to master by pushing to self.query_from_worker
@@ -103,9 +97,8 @@ class CraftAssistSwarmWorker(CraftAssistAgent):
         finished_task_memids = []
         for memid, task in self.task_stacks.items():
             pre_task_status = (self.prio[memid], self.running[memid], task.finished)
-            if self.prio[memid] == -1:
-                if task.init_condition.check():
-                    self.prio[memid] = 0
+            if self.prio[memid] == -1 and task.init_condition.check():
+                self.prio[memid] = 0
             cur_task_status = (self.prio[memid], self.running[memid], task.finished)
             if cur_task_status!= pre_task_status:
                 task_updates.append((memid, cur_task_status))
@@ -202,7 +195,7 @@ class CraftAssistSwarmWorker_Wrapper(Process):
                         agent.pause[task_memid] = False
                 elif task_memid in agent.task_stacks.keys():
                     self.send_task_updates([(task_memid, (agent.prio[task_memid], agent.running[task_memid], agent.task_stacks[task_memid].finished))])
-                elif task_memid in agent.task_ghosts:
+                else:
                     self.send_task_updates([(task_memid, (0, 0, True))])
 
     def handle_master_query(self, agent):
@@ -220,7 +213,7 @@ class CraftAssistSwarmWorker_Wrapper(Process):
                     for memid, task in agent.task_stacks.items():
                         agent.pause[memid] = False
                 else:
-                    logging.info("Query not handled: {}".format(query_name))
+                    logging.info(f"Query not handled: {query_name}")
                     raise NotImplementedError
     
 

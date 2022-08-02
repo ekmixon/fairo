@@ -89,7 +89,7 @@ class AgentMemory:
         on_delete_callback=None,
     ):
         if db_log_path:
-            self._db_log_file = gzip.open(db_log_path + ".gz", "w")
+            self._db_log_file = gzip.open(f"{db_log_path}.gz", "w")
             self._db_log_idx = 0
         if os.path.isfile(db_file):
             os.remove(db_file)
@@ -112,9 +112,7 @@ class AgentMemory:
         self.all_tables = [
             c[0] for c in self._db_read("SELECT name FROM sqlite_master WHERE type='table';")
         ]
-        self.nodes = {}
-        for node in nodelist:
-            self.nodes[node.NODE_TYPE] = node
+        self.nodes = {node.NODE_TYPE: node for node in nodelist}
         # FIXME, this is ugly.  using for memtype/FROM clauses in searches
         # we also store .TABLE in each node, and use it.  this also should be fixed,
         # it breaks the abstraction
@@ -225,7 +223,7 @@ class AgentMemory:
                         '3493128492859dfksdfhs34839458934']
             >>> update_recent_entities(mems)
         """
-        logging.info("update_recent_entities {}".format(mems))
+        logging.info(f"update_recent_entities {mems}")
         for mem in mems:
             mem.update_recently_attended()
 
@@ -315,7 +313,7 @@ class AgentMemory:
             >>> table = 'ReferenceObjects'
             >>> check_memid_exists(memid, table)
 et        """
-        return bool(self._db_read_one("SELECT * FROM {} WHERE uuid=?".format(table), memid))
+        return bool(self._db_read_one(f"SELECT * FROM {table} WHERE uuid=?", memid))
 
     # TODO forget should be a method of the memory object
     def forget(self, memid: str):
@@ -439,13 +437,11 @@ et        """
             >>> tag_text = "shiny"
             >>> untag(subj_memid, tag_text)
         """
-        # FIXME replace me with a basic filters when _self handled better
-        triple_memids = self._db_read(
+        if triple_memids := self._db_read(
             'SELECT uuid FROM Triples WHERE subj=? AND pred_text="has_tag" AND obj_text=?',
             subj_memid,
             tag_text,
-        )
-        if triple_memids:
+        ):
             self.forget(triple_memids[0][0])
 
     # does not search archived mems for now
@@ -483,10 +479,7 @@ et        """
             >>> subj_memid = '10517cc584844659907ccfa6161e9d32'
             >>> get_tags_by_memid(subj_memid=subj_memid, return_text=True)
         """
-        if return_text:
-            return_clause = "obj_text"
-        else:
-            return_clause = "obj"
+        return_clause = "obj_text" if return_text else "obj"
         q = (
             "SELECT DISTINCT("
             + return_clause
@@ -543,11 +536,8 @@ et        """
             ("obj_text", obj_text),
         ]
         args = [x[1] for x in pairs if x[1] is not None]
-        where = [x[0] + "=?" for x in pairs if x[1] is not None]
-        if len(where) == 1:
-            where_clause = where[0]
-        else:
-            where_clause = " AND ".join(where)
+        where = [f"{x[0]}=?" for x in pairs if x[1] is not None]
+        where_clause = where[0] if len(where) == 1 else " AND ".join(where)
         return_clause = "subj, pred_text, obj, obj_text "
         sql = (
             "SELECT "
@@ -558,10 +548,10 @@ et        """
         r = self._db_read(sql, *args)
         # subj is always returned as memid, even if pred and obj are returned as text
         # pred is always returned as text
-        if return_obj_text == "if_exists":
-            l = [(s, pt, ot) if ot else (s, pt, o) for (s, pt, o, ot) in r]
-        elif return_obj_text == "always":
+        if return_obj_text == "always":
             l = [(s, pt, ot) for (s, pt, o, ot) in r]
+        elif return_obj_text == "if_exists":
+            l = [(s, pt, ot) if ot else (s, pt, o) for (s, pt, o, ot) in r]
         else:
             l = [(s, pt, o) for (s, pt, o, ot) in r]
         return cast(List[Tuple[str, str, str]], l)
@@ -612,7 +602,7 @@ et        """
         Args:
             after (int): Marks the beginning of time window (from now)
         """
-        r = self._db_read_one(
+        if r := self._db_read_one(
             """
             SELECT uuid
             FROM Chats
@@ -622,8 +612,7 @@ et        """
             """,
             self.self_memid,
             after,
-        )
-        if r:
+        ):
             return ChatNode(self, r[0])
         else:
             return None
@@ -659,8 +648,9 @@ et        """
         Args:
             eid (int): Entity ID
         """
-        r = self._db_read_one("SELECT uuid FROM ReferenceObjects WHERE eid=?", eid)
-        if r:
+        if r := self._db_read_one(
+            "SELECT uuid FROM ReferenceObjects WHERE eid=?", eid
+        ):
             return PlayerNode(self, r[0])
         else:
             return None
@@ -672,11 +662,10 @@ et        """
         Args:
             name (string): Player name
         """
-        r = self._db_read_one(
-            'SELECT uuid FROM ReferenceObjects WHERE ref_type="player" AND name=?', name
-        )
-        #        r = self._db_read_one("SELECT uuid FROM Players WHERE name=?", name)
-        if r:
+        if r := self._db_read_one(
+            'SELECT uuid FROM ReferenceObjects WHERE ref_type="player" AND name=?',
+            name,
+        ):
             return PlayerNode(self, r[0])
         else:
             return None
@@ -817,7 +806,7 @@ et        """
         Examples ::
             >>> task_stack_peek()
         """
-        r = self._db_read_one(
+        if r := self._db_read_one(
             """
             SELECT uuid
             FROM Tasks
@@ -825,8 +814,7 @@ et        """
             ORDER BY created DESC
             LIMIT 1
             """
-        )
-        if r:
+        ):
             return TaskNode(self, r[0])
         else:
             return None
@@ -890,16 +878,12 @@ et        """
         """
         names = [cls_names] if type(cls_names) == str else cls_names
         (memid,) = self._db_read_one(
-            "SELECT uuid FROM Tasks WHERE {} ORDER BY created LIMIT 1".format(
-                " OR ".join(["action_name=?" for _ in names])
-            ),
+            f'SELECT uuid FROM Tasks WHERE {" OR ".join(["action_name=?" for _ in names])} ORDER BY created LIMIT 1',
             *names,
         )
 
-        if memid is not None:
-            return TaskNode(self, memid)
-        else:
-            return None
+
+        return TaskNode(self, memid) if memid is not None else None
 
     def get_last_finished_root_task(self, action_name: str = None, recency: int = None):
         """Get last task that was marked as finished
@@ -978,7 +962,7 @@ et        """
             c.close()
             return r
         except:
-            logging.error("Bad read: {} : {}".format(query, args))
+            logging.error(f"Bad read: {query} : {args}")
             raise
 
     def _db_read_one(self, query: str, *args) -> Tuple:
@@ -1004,7 +988,7 @@ et        """
             c.close()
             return r
         except:
-            logging.error("Bad read: {} : {}".format(query, args))
+            logging.error(f"Bad read: {query} : {args}")
             raise
 
     def db_write(self, query: str, *args) -> int:
@@ -1066,7 +1050,7 @@ et        """
             self._write_to_db_log(query, *args)
             return c.rowcount
         except:
-            logging.error("Bad write: {} : {}".format(query, args))
+            logging.error(f"Bad write: {query} : {args}")
             raise
 
     def _db_script(self, script: str):
@@ -1109,7 +1093,7 @@ et        """
             final += str(sub).encode("utf-8")
             if type(arg) == str and arg != "":
                 # put quotes around string args
-                final += '"{}"'.format(arg).encode("utf-8")
+                final += f'"{arg}"'.encode("utf-8")
             else:
                 final += str(arg).encode("utf-8")
 
@@ -1147,8 +1131,8 @@ et        """
         from the key-value store, indexed by the obj memid
         """
         for attr in NONPICKLE_ATTRS:
-            if hasattr(obj, "__had_attr_" + attr):
-                delattr(obj, "__had_attr_" + attr)
+            if hasattr(obj, f"__had_attr_{attr}"):
+                delattr(obj, f"__had_attr_{attr}")
                 setattr(obj, attr, self._safe_pickle_saved_attrs[obj.memid][attr])
 
     def safe_pickle(self, obj):
@@ -1165,7 +1149,7 @@ et        """
                     self._safe_pickle_saved_attrs[obj.memid] = {}
                 val = getattr(obj, attr)
                 setattr(obj, attr, None)
-                setattr(obj, "__had_attr_" + attr, True)
+                setattr(obj, f"__had_attr_{attr}", True)
                 self._safe_pickle_saved_attrs[obj.memid][attr] = val
         p = pickle.dumps(obj)
         self.reinstate_attrs(obj)

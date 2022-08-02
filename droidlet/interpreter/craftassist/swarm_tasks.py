@@ -111,7 +111,7 @@ class SwarmDig(BaseSwarmTask):
 
         offset = np.zeros([self.num_agents], dtype = np.int32)
         offset[:] = self.width//self.num_agents
-        
+
         offset[-1] += self.width - self.width// self.num_agents * self.num_agents
         scheme[-1, 0] += self.width - self.width// self.num_agents * self.num_agents
 

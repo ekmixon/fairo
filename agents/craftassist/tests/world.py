@@ -24,10 +24,7 @@ def flat_ground_generator(world, grass=False, ground_depth=FLAT_GROUND_DEPTH):
     world.blocks[:] = 0
     world.blocks[:, 0:r, :, 0] = 7
     world.blocks[:, r - ground_depth : r, :, 0] = 3
-    if grass:
-        world.blocks[:, r, :, 0] = 2
-    else:
-        world.blocks[:, r, :, 0] = 3
+    world.blocks[:, r, :, 0] = 2 if grass else 3
 
 
 def shift_coords(p, shift):
@@ -116,10 +113,7 @@ class World:
             avg_ground_height = self.opts.avg_ground_height
         else:
             avg_ground_height = 6.0
-        if hasattr(self.opts, "hill_scale"):
-            hill_scale = self.opts.hill_scale
-        else:
-            hill_scale = 5.0
+        hill_scale = self.opts.hill_scale if hasattr(self.opts, "hill_scale") else 5.0
         p = hill_scale * np.random.randn(6)
         g = np.mgrid[0 : self.sl, 0 : self.sl].astype("float32") / self.sl
         ground_height = (
@@ -144,7 +138,7 @@ class World:
             for idm, val in self.opts.ground_block_probs:
                 if idm != (3, 0):
                     num = np.random.rand() * val * 2 * num_ground_blocks
-                    for i in range(num):
+                    for _ in range(num):
                         j = np.random.randint(num_ground_blocks)
                         self.blocks[
                             ground_blocks[j][0], ground_blocks[j][1], ground_blocks[j][2], :
@@ -164,24 +158,14 @@ class World:
                 return False
         # mobs keep loc in real coords, block objects we convert to the numpy index
         loc = tuple(self.to_world_coords(loc))
-        if idm[0] == 0:
-            try:
-                if tuple(self.blocks[loc]) != (7, 0) or force:
-                    self.blocks[loc] = (0, 0)
-                    return True
-                else:
-                    return False
-            except:
+        try:
+            if tuple(self.blocks[loc]) != (7, 0) or force:
+                self.blocks[loc] = (0, 0) if idm[0] == 0 else idm
+                return True
+            else:
                 return False
-        else:
-            try:
-                if tuple(self.blocks[loc]) != (7, 0) or force:
-                    self.blocks[loc] = idm
-                    return True
-                else:
-                    return False
-            except:
-                return False
+        except:
+            return False
 
     def dig(self, loc: XYZ):
         return self.place_block((loc, (0, 0)))
@@ -246,10 +230,7 @@ class World:
         pre_B = self.blocks[xa : xb + 1, ya : yb + 1, za : zb + 1, :]
         # pre_B = self.blocks[ya : yb + 1, za : zb + 1, xa : xb + 1, :]
         B[ys:yS, zs:zS, xs:xS, :] = pre_B.transpose(1, 2, 0, 3)
-        if transpose:
-            return B
-        else:
-            return pre_B
+        return B if transpose else pre_B
 
     def get_line_of_sight(self, pos, yaw, pitch):
         # it is assumed lv is unit normalized
@@ -262,13 +243,16 @@ class World:
                 for j in range(-1, 2):
                     for k in range(-1, 2):
                         sp = tuple(np.add(p, (i, j, k)))
-                        if all([x >= 0 for x in sp]) and all([x < self.sl for x in sp]):
-                            if tuple(self.blocks[sp]) != (0, 0):
-                                # TODO: deal with close blocks artifacts,
-                                # etc
-                                return tuple(self.from_world_coords(sp))
+                        if (
+                            all(x >= 0 for x in sp)
+                            and all(x < self.sl for x in sp)
+                            and tuple(self.blocks[sp]) != (0, 0)
+                        ):
+                            # TODO: deal with close blocks artifacts,
+                            # etc
+                            return tuple(self.from_world_coords(sp))
         return
 
     def add_incoming_chat(self, chat: str, speaker_name: str):
         """Add a chat to memory as if it was just spoken by SPEAKER"""
-        self.chat_log.append("<" + speaker_name + ">" + " " + chat)
+        self.chat_log.append(f"<{speaker_name}> {chat}")

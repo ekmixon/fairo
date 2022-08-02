@@ -17,10 +17,7 @@ class DialogueStack(object):
 
     def peek(self):
         """Get the item on top of the DialogueStack"""
-        if self.stack:
-            return self.stack[-1]
-        else:
-            return None
+        return self.stack[-1] if self.stack else None
 
     def clear(self):
         """clear current stack"""
@@ -34,30 +31,31 @@ class DialogueStack(object):
     # FIXME: in stage III, replace agent with the lowlevel interface to sending chats
     def step(self, agent):
         """Process and step through the top-of-stack dialogue object."""
-        if len(self.stack) > 0:
-            # WARNING: check_finished increments the DialogueObject's current_step counter
-            while len(self.stack) > 0 and self.stack[-1].check_finished():
-                del self.stack[-1]
+        if len(self.stack) <= 0:
+            return
+        # WARNING: check_finished increments the DialogueObject's current_step counter
+        while len(self.stack) > 0 and self.stack[-1].check_finished():
+            del self.stack[-1]
 
-            if len(self.stack) == 0:
-                return
+        if len(self.stack) == 0:
+            return
 
-            try:
-                output_chat, step_data = self.stack[-1].step(agent=agent)
-                if output_chat:
-                    agent.send_chat(output_chat)
+        try:
+            output_chat, step_data = self.stack[-1].step(agent=agent)
+            if output_chat:
+                agent.send_chat(output_chat)
 
                 # Update progeny_data of the current DialogueObject
-                if len(self.stack) > 1 and step_data is not None:
-                    logging.debug("Update progeny_data={} stack={}".format(step_data, self.stack))
-                    self.stack[-2].update_progeny_data(step_data)
+            if len(self.stack) > 1 and step_data is not None:
+                logging.debug(f"Update progeny_data={step_data} stack={self.stack}")
+                self.stack[-2].update_progeny_data(step_data)
 
-            except NextDialogueStep:
-                return
-            except ErrorWithResponse as err:
-                self.stack[-1].finished = True
-                agent.send_chat(err.chat)
-                return
+        except NextDialogueStep:
+            return
+        except ErrorWithResponse as err:
+            self.stack[-1].finished = True
+            agent.send_chat(err.chat)
+            return
 
     def __len__(self):
         """Length of stack"""

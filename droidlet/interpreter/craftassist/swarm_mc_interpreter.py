@@ -46,11 +46,10 @@ class SwarmMCInterpreter(MCInterpreter):
         if hasattr(agent, "swarm_workers"):
             for i in range(agent.num_agents-1):
                 agent.swarm_workers[i].query_from_master.put(("resume", None))
-        if self.memory.task_stack_resume():
-            if self.archived_loop_data is not None:
-                # TODO if we want to be able stop and resume old tasks, will need to store
-                self.loop_data = self.archived_loop_data
-                self.archived_loop_data = None
-            return None, "resuming", None
-        else:
+        if not self.memory.task_stack_resume():
             return None, "nothing to resume", None
+        if self.archived_loop_data is not None:
+            # TODO if we want to be able stop and resume old tasks, will need to store
+            self.loop_data = self.archived_loop_data
+            self.archived_loop_data = None
+        return None, "resuming", None

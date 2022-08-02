@@ -42,21 +42,18 @@ def hollow_triangle(
             r = range(height, side - height)
         else:
             r = list(range(height, height + thickness))
-            r = r + list(range(side - height - thickness, side - height))
+            r += list(range(side - height - thickness, side - height))
         for i in r:
             if i >= 0:
-                for t in range(0, depth):
+                for t in range(depth):
                     if orient == "xy":
                         S.append(((i, height, t), bid))
-                    elif orient == "yz":
-                        S.append(((t, i, height), bid))
                     elif orient == "xz":
                         S.append(((i, t, height), bid))
 
-    if not labelme:
-        return S
-    else:
-        return S, L, insts
+                    elif orient == "yz":
+                        S.append(((t, i, height), bid))
+    return (S, L, insts) if labelme else S
 
 
 def hollow_rectangle(
@@ -76,16 +73,15 @@ def hollow_rectangle(
 
     def close_to_border(r):
         for i in range(3):
-            if abs(r[0][i] - m[i]) < thickness or abs(r[0][i] - M[i]) < thickness:
-                if M[i] > m[i]:
-                    return True
+            if (
+                abs(r[0][i] - m[i]) < thickness
+                or abs(r[0][i] - M[i]) < thickness
+            ) and M[i] > m[i]:
+                return True
         return False
 
     S = [r for r in R if close_to_border(r)]
-    if not labelme:
-        return S
-    else:
-        return S, {}, {}
+    return (S, {}, {}) if labelme else S
 
 
 def rectangle(
@@ -135,18 +131,15 @@ def triangle(size=3, bid=DEFAULT_IDM, orient="xy", thickness=1, labelme=False, *
 
     for height in range(side // 2 + 1):
         for i in range(height, side - height):
-            for t in range(0, thickness):
+            for t in range(thickness):
                 if orient == "xy":
                     S.append(((i, height, t), bid))
-                elif orient == "yz":
-                    S.append(((t, i, height), bid))
                 elif orient == "xz":
                     S.append(((i, t, height), bid))
 
-    if not labelme:
-        return S
-    else:
-        return S, L, insts
+                elif orient == "yz":
+                    S.append(((t, i, height), bid))
+    return (S, L, insts) if labelme else S
 
 
 def circle(
@@ -159,7 +152,7 @@ def circle(
     S = []
     L = {}
     insts = {}
-    tlist = range(0, thickness)
+    tlist = range(thickness)
     for r in range(N):
         for s in range(N):
             in_radius = False
@@ -172,14 +165,11 @@ def circle(
                 for t in tlist:
                     if orient == "xy":
                         S.append(((r, s, t), bid))  # Render in the xy plane
-                    elif orient == "yz":
-                        S.append(((t, r, s), bid))  # Render in the yz plane
                     elif orient == "xz":
                         S.append(((r, t, s), bid))  # Render in the xz plane
-    if not labelme:
-        return S
-    else:
-        return S, L, insts
+                    elif orient == "yz":
+                        S.append(((t, r, s), bid))  # Render in the yz plane
+    return (S, L, insts) if labelme else S
 
 
 def disk(radius=5, size=None, bid=DEFAULT_IDM, orient="xy", thickness=1, labelme=False, **kwargs):
@@ -191,22 +181,19 @@ def disk(radius=5, size=None, bid=DEFAULT_IDM, orient="xy", thickness=1, labelme
     S = []
     L = {}
     insts = {}
-    tlist = range(0, thickness)
+    tlist = range(thickness)
     for r in range(N):
         for s in range(N):
             if ((r - c) ** 2 + (s - c) ** 2) ** 0.5 < N / 2:
                 for t in tlist:
                     if orient == "xy":
                         S.append(((r, s, t), bid))  # Render in the xy plane
-                    elif orient == "yz":
-                        S.append(((t, r, s), bid))  # Render in the yz plane
                     elif orient == "xz":
                         S.append(((r, t, s), bid))  # Render in the xz plane
 
-    if not labelme:
-        return S
-    else:
-        return S, L, insts
+                    elif orient == "yz":
+                        S.append(((t, r, s), bid))  # Render in the yz plane
+    return (S, L, insts) if labelme else S
 
 
 def rectanguloid(
@@ -233,23 +220,18 @@ def rectanguloid(
     L = {}
     for r in range(size[0]):
         for s in range(size[1]):
-            for t in range(size[2]):
-                S.append(((r, s, t), bid))
+            S.extend(((r, s, t), bid) for t in range(size[2]))
     if not labelme:
         return S
-    else:
-        insts = get_rect_instance_seg((0, size[0] - 1), (0, size[1] - 1), (0, size[2] - 1))
-        L = labels_from_instance_seg(insts, L=L)
-        return S, L, insts
+    insts = get_rect_instance_seg((0, size[0] - 1), (0, size[1] - 1), (0, size[2] - 1))
+    L = labels_from_instance_seg(insts, L=L)
+    return S, L, insts
 
 
 def near_extremes(x, a, b, r):
     """checks if x is within r of a or b, and between them"""
     assert a <= b
-    if x >= a and x <= b:
-        if x - a < r or b - x < r:
-            return True
-    return False
+    return x >= a and x <= b and (x - a < r or b - x < r)
 
 
 def rectanguloid_frame(
@@ -263,10 +245,7 @@ def rectanguloid_frame(
         bne = [near_extremes(l[i], 0, M[i], thickness) for i in range(3)]
         if (only_corners and sum(bne) == 3) or (not only_corners and sum(bne) > 1):
             S.append((l, idm))
-    if not labelme:
-        return S
-    else:
-        return S, {}, {}
+    return (S, {}, {}) if labelme else S
 
 
 def hollow_rectanguloid(size=3, thickness=1, bid=DEFAULT_IDM, labelme=False, **kwargs):
@@ -289,9 +268,9 @@ def hollow_rectanguloid(size=3, thickness=1, bid=DEFAULT_IDM, labelme=False, **k
     S = []
     L = {}
     interior = []
-    for r in range(size[0]):
-        for s in range(size[1]):
-            for t in range(size[2]):
+    for r in range(os[0]):
+        for s in range(os[1]):
+            for t in range(os[2]):
                 proceed = False
                 proceed = proceed or r < rs[0][0] or r >= rs[0][1]
                 proceed = proceed or s < rs[1][0] or s >= rs[1][1]
@@ -302,19 +281,18 @@ def hollow_rectanguloid(size=3, thickness=1, bid=DEFAULT_IDM, labelme=False, **k
                     interior.append((r, s, t))
     if not labelme:
         return S
-    else:
-        insts = get_rect_instance_seg((0, os[0] - 1), (0, os[1] - 1), (0, os[2] - 1))
-        inner_insts = get_rect_instance_seg(
-            (rs[0][0] - 1, rs[0][1]), (rs[1][0] - 1, rs[1][1]), (rs[2][0] - 1, rs[2][1])
-        )
-        L = labels_from_instance_seg(insts, L=L)
-        inner_insts = {"inner_" + l: inner_insts[l] for l in inner_insts}
-        L = labels_from_instance_seg(inner_insts, L=L)
-        insts.update(inner_insts)
-        for p in interior:
-            L[p] = "inside"
-        insts["inside"] = tuple(interior)
-        return S, L, insts
+    insts = get_rect_instance_seg((0, os[0] - 1), (0, os[1] - 1), (0, os[2] - 1))
+    inner_insts = get_rect_instance_seg(
+        (rs[0][0] - 1, rs[0][1]), (rs[1][0] - 1, rs[1][1]), (rs[2][0] - 1, rs[2][1])
+    )
+    L = labels_from_instance_seg(insts, L=L)
+    inner_insts = {f"inner_{l}": inner_insts[l] for l in inner_insts}
+    L = labels_from_instance_seg(inner_insts, L=L)
+    insts.update(inner_insts)
+    for p in interior:
+        L[p] = "inside"
+    insts["inside"] = tuple(interior)
+    return S, L, insts
 
 
 def hollow_cube(size=3, thickness=1, bid=DEFAULT_IDM, labelme=False, **kwargs):
@@ -338,14 +316,10 @@ def sphere(radius=5, size=None, bid=DEFAULT_IDM, labelme=False, **kwargs):
                 w = ((r - c) ** 2 + (s - c) ** 2 + (t - c) ** 2) ** 0.5
                 if w < N / 2:
                     S.append(((r, s, t), bid))
-                    if w > N / 2 - 1:
-                        if labelme:
-                            L[(r, s, t)] = ["spherical_surface"]
-                            insts["spherical_surface"][0].append((r, s, t))
-    if not labelme:
-        return S
-    else:
-        return S, L, insts
+                    if w > N / 2 - 1 and labelme:
+                        L[(r, s, t)] = ["spherical_surface"]
+                        insts["spherical_surface"][0].append((r, s, t))
+    return (S, L, insts) if labelme else S
 
 
 def spherical_shell(radius=5, size=None, thickness=2, bid=DEFAULT_IDM, labelme=False, **kwargs):
@@ -378,10 +352,7 @@ def spherical_shell(radius=5, size=None, thickness=2, bid=DEFAULT_IDM, labelme=F
                     L[(r, s, t)] = ["spherical_surface"]
                     insts["spherical_surface"][0].append((r, s, t))
 
-    if not labelme:
-        return S
-    else:
-        return S, L, insts
+    return (S, L, insts) if labelme else S
 
 
 def square_pyramid(
@@ -445,10 +416,7 @@ def square_pyramid(
                             L[(s, h, t)] = ["pyramid_diag_edge"]
                             i = sstart * 1 + tstart * 2
                             insts["pyramid_diag_edge"][i].append((s, h, t))
-    if not labelme:
-        return S
-    else:
-        return S, L, insts
+    return (S, L, insts) if labelme else S
 
 
 def tower(height=10, size=None, base=-1, bid=DEFAULT_IDM, labelme=False, **kwargs):
@@ -473,13 +441,13 @@ def tower(height=10, size=None, base=-1, bid=DEFAULT_IDM, labelme=False, **kwarg
         S = []
         for s in range(height):
             for m in range(base):
-                for n in range(base):
-                    if ((m - c) ** 2 + (n - c) ** 2) ** 0.5 <= D / 2:
-                        S.append(((m, s, n), bid))
-        if not labelme:
-            return S
-        else:
-            return S, {}, {}
+                S.extend(
+                    ((m, s, n), bid)
+                    for n in range(base)
+                    if ((m - c) ** 2 + (n - c) ** 2) ** 0.5 <= D / 2
+                )
+
+        return (S, {}, {}) if labelme else S
 
 
 def ellipsoid(size=(7, 8, 9), bid=DEFAULT_IDM, labelme=False, **kwargs):
@@ -502,13 +470,19 @@ def ellipsoid(size=(7, 8, 9), bid=DEFAULT_IDM, labelme=False, **kwargs):
     insts = {}
     for r in range(2 * a):
         for s in range(2 * b):
-            for t in range(2 * c):
-                if (((r - cx) / a) ** 2 + ((s - cy) / b) ** 2 + ((t - cz) / c) ** 2) ** 0.5 < 1.0:
-                    S.append(((r, s, t), bid))
-    if not labelme:
-        return S
-    else:
-        return S, L, insts
+            S.extend(
+                ((r, s, t), bid)
+                for t in range(2 * c)
+                if (
+                    ((r - cx) / a) ** 2
+                    + ((s - cy) / b) ** 2
+                    + ((t - cz) / c) ** 2
+                )
+                ** 0.5
+                < 1.0
+            )
+
+    return (S, L, insts) if labelme else S
 
 
 def dome(radius=3, size=None, bid=DEFAULT_IDM, thickness=2, labelme=False, **kwargs):
@@ -533,10 +507,7 @@ def dome(radius=3, size=None, bid=DEFAULT_IDM, thickness=2, labelme=False, **kwa
                     out_core = True
                 if in_radius and out_core:
                     S.append(((r, s, t), bid))
-    if not labelme:
-        return S
-    else:
-        return S, L, insts
+    return (S, L, insts) if labelme else S
 
 
 def arch(size=3, distance=11, bid=DEFAULT_IDM, orient="xy", labelme=False, **kwargs):
@@ -553,21 +524,22 @@ def arch(size=3, distance=11, bid=DEFAULT_IDM, orient="xy", labelme=False, **kwa
     assert distance % 2 == 1  # distance between the 2 columns should be odd
 
     offset = 0
+    cx = offset + distance + 1
+    cz = offset
     for i in range(length):
         S.append(((offset, i, offset), bid))
-        cx = offset + distance + 1
         cy = i
-        cz = offset
         if orient == "xy":
             S.append(((cx, cy, cz), bid))
         elif orient == "yz":
             S.append(((cz, cy, cx), bid))
 
+    cz_1 = offset
+    cz_2 = offset
     # Blocks corresponding to the stepped roof
     for i in range(1, distance // 2 + 1):
         cx_1 = offset + i
         cy_1 = length + i - 1
-        cz_1 = offset
         if orient == "xy":
             S.append(((cx_1, cy_1, cz_1), bid))
         elif orient == "yz":
@@ -575,7 +547,6 @@ def arch(size=3, distance=11, bid=DEFAULT_IDM, orient="xy", labelme=False, **kwa
 
         cx_2 = offset + distance + 1 - i
         cy_2 = length + i - 1
-        cz_2 = offset
         if orient == "xy":
             S.append(((cx_2, cy_2, cz_2), bid))
         elif orient == "yz":
@@ -590,48 +561,75 @@ def arch(size=3, distance=11, bid=DEFAULT_IDM, orient="xy", labelme=False, **kwa
     elif orient == "yz":
         S.append(((cz_top, cy_top, cx_top), bid))
 
-    if not labelme:
-        return S
-    else:
-        return S, L, insts
+    return (S, L, insts) if labelme else S
 
 
 def get_rect_instance_seg(bx, by, bz):
-    I = {}
-    I["top_corner"] = [((bx[i], by[1], bz[j]),) for i in range(2) for j in range(2)]
-
-    I["bottom_corner"] = [((bx[i], by[0], bz[j]),) for i in range(2) for j in range(2)]
-
-    I["vertical_edge"] = [
-        tuple((bx[i], s, bz[j]) for s in range(by[0], by[1] + 1))
-        for i in range(2)
-        for j in range(2)
-    ]
-
-    I["top_edge"] = [
-        tuple((s, by[1], bz[i]) for s in range(bx[0], bx[1] + 1)) for i in range(2)
-    ] + [tuple((bx[i], by[1], s) for s in range(bz[0], bz[1] + 1)) for i in range(2)]
-
-    I["bottom_edge"] = [
-        tuple((s, by[0], bz[i]) for s in range(bx[0], bx[1] + 1)) for i in range(2)
-    ] + [tuple((bx[i], by[0], s) for s in range(bz[0], bz[1] + 1)) for i in range(2)]
-
-    I["face"] = [
-        tuple((s, t, bz[i]) for s in range(bx[0], bx[1] + 1) for t in range(by[0], by[1] + 1))
-        for i in range(2)
-    ] + [
-        tuple((bx[i], t, s) for s in range(bz[0], bz[1] + 1) for t in range(by[0], by[1] + 1))
-        for i in range(2)
-    ]
-
-    I["top"] = [
-        tuple((s, by[1], t) for s in range(bx[0], bx[1] + 1) for t in range(bz[0], bz[1] + 1))
-    ]
-
-    I["bottom"] = [
-        tuple((s, by[0], t) for s in range(bx[0], bx[1] + 1) for t in range(bz[0], bz[1] + 1))
-    ]
-    return I
+    return {
+        "top_corner": [
+            ((bx[i], by[1], bz[j]),) for i in range(2) for j in range(2)
+        ],
+        "bottom_corner": [
+            ((bx[i], by[0], bz[j]),) for i in range(2) for j in range(2)
+        ],
+        "vertical_edge": [
+            tuple((bx[i], s, bz[j]) for s in range(by[0], by[1] + 1))
+            for i in range(2)
+            for j in range(2)
+        ],
+        "top_edge": (
+            [
+                tuple((s, by[1], bz[i]) for s in range(bx[0], bx[1] + 1))
+                for i in range(2)
+            ]
+            + [
+                tuple((bx[i], by[1], s) for s in range(bz[0], bz[1] + 1))
+                for i in range(2)
+            ]
+        ),
+        "bottom_edge": (
+            [
+                tuple((s, by[0], bz[i]) for s in range(bx[0], bx[1] + 1))
+                for i in range(2)
+            ]
+            + [
+                tuple((bx[i], by[0], s) for s in range(bz[0], bz[1] + 1))
+                for i in range(2)
+            ]
+        ),
+        "face": (
+            [
+                tuple(
+                    (s, t, bz[i])
+                    for s in range(bx[0], bx[1] + 1)
+                    for t in range(by[0], by[1] + 1)
+                )
+                for i in range(2)
+            ]
+            + [
+                tuple(
+                    (bx[i], t, s)
+                    for s in range(bz[0], bz[1] + 1)
+                    for t in range(by[0], by[1] + 1)
+                )
+                for i in range(2)
+            ]
+        ),
+        "top": [
+            tuple(
+                (s, by[1], t)
+                for s in range(bx[0], bx[1] + 1)
+                for t in range(bz[0], bz[1] + 1)
+            )
+        ],
+        "bottom": [
+            tuple(
+                (s, by[0], t)
+                for s in range(bx[0], bx[1] + 1)
+                for t in range(bz[0], bz[1] + 1)
+            )
+        ],
+    }
 
 
 def labels_from_instance_seg(I, L=None):
@@ -641,9 +639,8 @@ def labels_from_instance_seg(I, L=None):
             for p in i:
                 if L.get(p) is None:
                     L[p] = [label]
-                else:
-                    if label not in L[p]:
-                        L[p].append(label)
+                elif label not in L[p]:
+                    L[p].append(label)
     return L
 
 
@@ -656,10 +653,7 @@ def get_bounds(S):
     """
     if len(S) == 0:
         return 0, 0, 0, 0, 0, 0
-    if len(S[0]) == 3:
-        T = [(l, (0, 0)) for l in S]
-    else:
-        T = S
+    T = [(l, (0, 0)) for l in S] if len(S[0]) == 3 else S
     x, y, z = list(zip(*list(zip(*T))[0]))
     return min(x), max(x), min(y), max(y), min(z), max(z)
 

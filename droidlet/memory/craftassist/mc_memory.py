@@ -102,8 +102,9 @@ class MCAgentMemory(AgentMemory):
         Returns:
             The memory node of entity with entity id
         """
-        r = self._db_read_one("SELECT uuid FROM ReferenceObjects WHERE eid=?", eid)
-        if r:
+        if r := self._db_read_one(
+            "SELECT uuid FROM ReferenceObjects WHERE eid=?", eid
+        ):
             return self.get_mem_by_id(r[0])
         else:
             return None
@@ -118,8 +119,9 @@ class MCAgentMemory(AgentMemory):
     def _update_voxel_count(self, memid, dn):
         """Update voxel count of a reference object with an amount
         equal to : dn"""
-        c = self._db_read_one("SELECT voxel_count FROM ReferenceObjects WHERE uuid=?", memid)
-        if c:
+        if c := self._db_read_one(
+            "SELECT voxel_count FROM ReferenceObjects WHERE uuid=?", memid
+        ):
             count = c[0] + dn
             self.db_write("UPDATE ReferenceObjects SET voxel_count=? WHERE uuid=?", count, memid)
             return count
@@ -138,10 +140,7 @@ class MCAgentMemory(AgentMemory):
         assert count != 0
         if old_loc:
             b = 1 / count
-            if count > 0:
-                a = (count - 1) / count
-            else:
-                a = (1 - count) / (-count)
+            a = (count - 1) / count if count > 0 else (1 - count) / (-count)
             new_loc = (
                 old_loc[0] * a + loc[0] * b,
                 old_loc[1] * a + loc[1] * b,
@@ -231,7 +230,7 @@ class MCAgentMemory(AgentMemory):
         elif table == "InstSeg":
             return InstSegNode(self, memid)
         else:
-            raise ValueError("Bad table={}".format(table))
+            raise ValueError(f"Bad table={table}")
 
     # and rename this
     def get_object_info_by_xyz(self, xyz: XYZ, ref_type: str, just_memid=True):
@@ -244,10 +243,7 @@ class MCAgentMemory(AgentMemory):
             *xyz,
             ref_type
         )
-        if just_memid:
-            return [memid for (memid, bid, meta) in r]
-        else:
-            return r
+        return [memid for (memid, bid, meta) in r] if just_memid else r
 
     # WARNING: these do not search archived/snapshotted block objects
     # TODO replace all these all through the codebase with generic counterparts
@@ -259,9 +255,7 @@ class MCAgentMemory(AgentMemory):
         """Get ids of memory node of type "BlockObjects" or "VoxelObjectNode"
         at (x, y, z)"""
         memids = self.get_block_object_ids_by_xyz(xyz)
-        if len(memids) == 0:
-            return None
-        return self.get_block_object_by_id(memids[0])
+        return None if len(memids) == 0 else self.get_block_object_by_id(memids[0])
 
     def get_block_object_by_id(self, memid: str) -> "VoxelObjectNode":
         return self.get_object_by_id(memid, "BlockObjects")
@@ -277,11 +271,10 @@ class MCAgentMemory(AgentMemory):
     def get_instseg_object_ids_by_xyz(self, xyz: XYZ) -> List[str]:
         """Get ids of memory nodes of ref_type: "inst_seg" using their
         location"""
-        r = self._db_read(
+        return self._db_read(
             'SELECT DISTINCT(uuid) FROM VoxelObjects WHERE ref_type="inst_seg" AND x=? AND y=? AND z=?',
             *xyz
         )
-        return r
 
     ####################
     ###  Schematics  ###
@@ -308,57 +301,48 @@ class MCAgentMemory(AgentMemory):
         result = []  # noqa
         for e in r:
             schematic_name = e[0]
-            schematics = self._db_read(
+            if schematics := self._db_read(
                 """
                     SELECT Schematics.uuid
                     FROM Schematics INNER JOIN Triples as T ON T.subj=Schematics.uuid
                     WHERE (T.pred_text="has_name" OR T.pred_text="has_tag") AND T.obj_text=?""",
                 schematic_name,
-            )
-            if schematics:
+            ):
                 result.extend(schematics)
-        if result:
-            return self.get_schematic_by_id(random.choice(result)[0])
-        else:
-            return None
+        return self.get_schematic_by_id(random.choice(result)[0]) if result else None
 
     def get_schematic_by_name(self, name: str) -> Optional["SchematicNode"]:
         """Get the id of Schematic type memory node using name"""
-        r = self._db_read(
+        if r := self._db_read(
             """
                 SELECT Schematics.uuid
                 FROM Schematics INNER JOIN Triples as T ON T.subj=Schematics.uuid
                 WHERE (T.pred_text="has_name" OR T.pred_text="has_tag") AND T.obj_text=?""",
             name,
-        )
-        if r:  # if multiple exist, then randomly select one
+        ):
             return self.get_schematic_by_id(random.choice(r)[0])
-        # if no schematic with exact matched name exists, search for a schematic
-        # with matched property name instead
         else:
             return self._get_schematic_by_property_name(name, "BlockTypes")
 
     def convert_block_object_to_schematic(self, block_object_memid: str) -> "SchematicNode":
         """Save a BlockObject as a Schematic node along with the link"""
-        r = self._db_read_one(
+        if r := self._db_read_one(
             'SELECT subj FROM Triples WHERE pred_text="_source_block_object" AND obj=?',
             block_object_memid,
-        )
-        if r:
+        ):
             # previously converted; return old schematic
             return self.get_schematic_by_id(r[0])
 
-        else:
-            # get up to date BlockObject
-            block_object = self.get_block_object_by_id(block_object_memid)
+        # get up to date BlockObject
+        block_object = self.get_block_object_by_id(block_object_memid)
 
-            # create schematic
-            memid = SchematicNode.create(self, list(block_object.blocks.items()))
+        # create schematic
+        memid = SchematicNode.create(self, list(block_object.blocks.items()))
 
-            # add triple linking the object to the schematic
-            self.add_triple(subj=memid, pred_text="_source_block_object", obj=block_object.memid)
+        # add triple linking the object to the schematic
+        self.add_triple(subj=memid, pred_text="_source_block_object", obj=block_object.memid)
 
-            return self.get_schematic_by_id(memid)
+        return self.get_schematic_by_id(memid)
 
     def _load_schematics(self, schematics, block_data, load_minecraft_specs=True):
         """Load all Minecraft schematics into agent memory"""
@@ -426,15 +410,16 @@ class MCAgentMemory(AgentMemory):
                     subj=memid, pred_text="has_name", obj_text=type_name.strip("block").strip()
                 )
 
-            if load_color:
-                if name_to_colors.get(type_name) is not None:
-                    for color in name_to_colors[type_name]:
-                        self.add_triple(subj=memid, pred_text="has_colour", obj_text=color)
+            if load_color and name_to_colors.get(type_name) is not None:
+                for color in name_to_colors[type_name]:
+                    self.add_triple(subj=memid, pred_text="has_colour", obj_text=color)
 
-            if load_block_property:
-                if block_name_to_properties.get(type_name) is not None:
-                    for property in block_name_to_properties[type_name]:
-                        self.add_triple(subj_text=memid, pred_text="has_name", obj_text=property)
+            if (
+                load_block_property
+                and block_name_to_properties.get(type_name) is not None
+            ):
+                for property in block_name_to_properties[type_name]:
+                    self.add_triple(subj_text=memid, pred_text="has_name", obj_text=property)
 
     def _load_mob_types(self, mobs, mob_property_data, load_mob_types=True):
         """Load all mob types into agent memory"""
@@ -443,7 +428,7 @@ class MCAgentMemory(AgentMemory):
 
         mob_name_to_properties = mob_property_data.get("name_to_properties", {})
         for (name, m) in mobs.items():
-            type_name = "spawn " + name
+            type_name = f"spawn {name}"
 
             # load single mob as schematics
             memid = SchematicNode.create(self, [((0, 0, 0), (383, m))])
@@ -466,8 +451,9 @@ class MCAgentMemory(AgentMemory):
 
     def set_mob_position(self, mob) -> "MobNode":
         """Update the position of mob in memory"""
-        r = self._db_read_one("SELECT uuid FROM ReferenceObjects WHERE eid=?", mob.entityId)
-        if r:
+        if r := self._db_read_one(
+            "SELECT uuid FROM ReferenceObjects WHERE eid=?", mob.entityId
+        ):
             self.db_write(
                 "UPDATE ReferenceObjects SET x=?, y=?, z=?, yaw=?, pitch=? WHERE eid=?",
                 mob.pos.x,
@@ -491,8 +477,9 @@ class MCAgentMemory(AgentMemory):
         Returns:
             ItemStackNode
         """
-        r = self._db_read_one("SELECT * FROM ReferenceObjects WHERE uuid=?", memid)
-        if r:
+        if r := self._db_read_one(
+            "SELECT * FROM ReferenceObjects WHERE uuid=?", memid
+        ):
             self.db_write("UPDATE ReferenceObjects SET eid=? WHERE uuid=?", eid, memid)
         return self.get_mem_by_id(memid)
 
@@ -502,8 +489,9 @@ class MCAgentMemory(AgentMemory):
         Returns :
             Updated or new ItemStackNode
         """
-        r = self._db_read_one("SELECT uuid FROM ReferenceObjects WHERE eid=?", item_stack.entityId)
-        if r:
+        if r := self._db_read_one(
+            "SELECT uuid FROM ReferenceObjects WHERE eid=?", item_stack.entityId
+        ):
             self.db_write(
                 "UPDATE ReferenceObjects SET x=?, y=?, z=? WHERE eid=?",
                 item_stack.pos.x,
@@ -518,8 +506,9 @@ class MCAgentMemory(AgentMemory):
 
     def get_all_item_stacks(self):
         """Get all nodes that are of type "item_stack" """
-        r = self._db_read("SELECT uuid, eid FROM ReferenceObjects WHERE ref_type=?", "item_stack")
-        return r
+        return self._db_read(
+            "SELECT uuid, eid FROM ReferenceObjects WHERE ref_type=?", "item_stack"
+        )
 
     ###############
     ###  Dances  ##

@@ -25,9 +25,8 @@ def maybe_convert_to_list(blocks):
     """Convert blocks to a list"""
     if type(blocks) is list:
         return blocks.copy()
-    else:
-        nz = np.transpose(blocks[:, :, :, 0].nonzero())
-        return [(tuple(loc), tuple(blocks[tuple(loc)])) for loc in nz]
+    nz = np.transpose(blocks[:, :, :, 0].nonzero())
+    return [(tuple(loc), tuple(blocks[tuple(loc)])) for loc in nz]
 
 
 def flint(x):
@@ -39,17 +38,14 @@ def ceint(x):
 
 
 def check_boundary(p, m, M):
-    if (
+    return (
         p[0] == m[0]
         or p[0] == M[0] - 1
         or p[1] == m[1]
         or p[1] == M[1] - 1
         or p[2] == m[2]
         or p[2] == M[2] - 1
-    ):
-        return True
-    else:
-        return False
+    )
 
 
 def reshift(shape):
@@ -88,7 +84,7 @@ def moment_at_center(npy, sl):
 def thicker_blocks(blocks, delta=1):
     """Takes a list of blocks and thickens them
     by an amount equal to delta"""
-    newblocks = {l: idm for (l, idm) in blocks}
+    newblocks = dict(blocks)
     for b in blocks:
         for dx in range(-delta, delta + 1):
             for dy in range(-delta, delta + 1):
@@ -198,17 +194,13 @@ def scale_sparse(blocks, lams=(1.0, 1.0, 1.0)):
     cell_szs = szs / big_szs
     big_szs = big_szs.astype("int32")
     big = np.zeros(tuple(big_szs) + (2,)).astype("int32")
-    for (x, y, z) in inp_dict.keys():
+    for (x, y, z) in inp_dict:
         for i in range(flint(x * lams[0]), ceint(x * lams[0]) + 2):
             for j in range(flint(y * lams[1]), ceint(y * lams[1]) + 2):
                 for k in range(flint(z * lams[2]), ceint(z * lams[2]) + 2):
                     if i < big_szs[0] and j < big_szs[1] and k < big_szs[2]:
                         best_cell, _, _ = get_cell_weights((i, j, k), cell_szs)
-                        idm = inp_dict.get(best_cell)
-                        if idm:
-                            big[i, j, k, :] = idm
-                        else:
-                            big[i, j, k, :] = (0, 0)
+                        big[i, j, k, :] = idm if (idm := inp_dict.get(best_cell)) else (0, 0)
     return big
 
 
@@ -250,9 +242,9 @@ def rotate(blocks, angle=0, mirror=-1, plane="xz"):
     i = angle // 90
     if i < 0:
         i = i % 4
-    if plane == "xz" or plane == "zx":
+    if plane in ["xz", "zx"]:
         return np.rot90(inp, i, axes=(0, 2))
-    elif plane == "xy" or plane == "yx":
+    elif plane in ["xy", "yx"]:
         return np.rot90(inp, i, axes=(0, 1))
     else:
         return np.rot90(inp, i, axes=(1, 2))
@@ -332,12 +324,14 @@ def replace_by_halfspace(blocks, new_idm=(0, 0), geometry=None, replace_every=Fa
     for i in range(szs[0]):
         for j in range(szs[1]):
             for k in range(szs[2]):
-                if blocks[i, j, k, 0] > 0:
-                    if (np.array((i, j, k)) - geometry["offset"]) @ geometry["v"] > geometry[
-                        "threshold"
-                    ]:
-                        if replace_every or tuple(out[i, j, k, :]) == mode:
-                            out[i, j, k, :] = new_idm
+                if (
+                    blocks[i, j, k, 0] > 0
+                    and (np.array((i, j, k)) - geometry["offset"])
+                    @ geometry["v"]
+                    > geometry["threshold"]
+                    and (replace_every or tuple(out[i, j, k, :]) == mode)
+                ):
+                    out[i, j, k, :] = new_idm
 
     return out
 
@@ -374,7 +368,7 @@ def get_index_from_proj(proj, proj_axes, i):
     index = [0, 0, 0]
     index[proj_axes[0]] = proj[0]
     index[proj_axes[1]] = proj[1]
-    index[(set([0, 1, 2]) - set(proj_axes)).pop()] = i
+    index[({0, 1, 2} - set(proj_axes)).pop()] = i
     return tuple(index)
 
 

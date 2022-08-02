@@ -33,11 +33,13 @@ class Recorder:
         self.coord_shift = d["coord_shift"]
 
     def save_to_file(self, filepath):
-        d = {}
-        d["last_entry"] = self.last_entry
-        d["tape"] = self.tape
-        d["initial_blocks"] = self.initial_blocks
-        d["coord_shift"] = self.coord_shift
+        d = {
+            "last_entry": self.last_entry,
+            "tape": self.tape,
+            "initial_blocks": self.initial_blocks,
+            "coord_shift": self.coord_shift,
+        }
+
         with open(filepath, "wb") as f:
             pickle.dump(d, f)
 
@@ -88,10 +90,7 @@ class Recorder:
         self.record_block_changes()
 
     def get_last_record(self):
-        if self.tape.get(self.last_entry):
-            return self.tape[self.last_entry]
-        else:
-            return {}
+        return self.tape[self.last_entry] if self.tape.get(self.last_entry) else {}
 
     def rewind(self):
         self.replay_step = 0

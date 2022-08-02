@@ -34,15 +34,17 @@ def build_random_shape(agent, shape_helper_dict, rand_range=(10, 0, 10),  no_cha
         "schematic_tags": relations,
         "default_behavior": "build_random_shape",  # must == function name. Hacky and I hate it.
     }
-    logging.debug("Default behavior: building {}".format(shape))
+    logging.debug(f"Default behavior: building {shape}")
     TaskNode(agent.memory, tasks.Build(agent, task_data).memid)
 
     if not no_chat:
         shape_name = prepend_a_an(shape.lower())
         # FIXME agent , also don't push directly to stack, ask the manager?
         agent.memory.dialogue_stack_append_new(
-            Say, "I am building {} while you decide what you want me to do!".format(shape_name)
+            Say,
+            f"I am building {shape_name} while you decide what you want me to do!",
         )
+
     return schematic
 
 

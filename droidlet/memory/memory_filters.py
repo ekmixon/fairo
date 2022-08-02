@@ -17,17 +17,11 @@ SELFID = "0" * 32
 
 
 def maybe_and(sql, a):
-    if a:
-        return sql + " AND "
-    else:
-        return sql
+    return f"{sql} AND " if a else sql
 
 
 def maybe_or(sql, a):
-    if a:
-        return sql + " OR "
-    else:
-        return sql
+    return f"{sql} OR " if a else sql
 
 
 def check_well_formed_triple(clause):
@@ -39,8 +33,8 @@ def check_well_formed_triple(clause):
             "obj" in clause or "obj_text" in clause,
         ]
     )
-    assert not ("subj" in clause and "subj_text" in clause)
-    assert not ("obj" in clause and "obj_text" in clause)
+    assert "subj" not in clause or "subj_text" not in clause
+    assert "obj" not in clause or "obj_text" not in clause
 
 
 def get_property_value(agent_memory, mem, prop, get_all=False):
@@ -65,24 +59,20 @@ def get_property_value(agent_memory, mem, prop, get_all=False):
     # is it in the main memory table?
     cols = [c[1] for c in agent_memory._db_read("PRAGMA table_info(Memories)")]
     if prop in cols:
-        cmd = "SELECT " + prop + " FROM Memories WHERE uuid=?"
+        cmd = f"SELECT {prop} FROM Memories WHERE uuid=?"
         r = agent_memory._db_read(cmd, mem.memid)
         return r[0][0]
     # is it in the mem.TABLE?
     T = mem.TABLE
-    cols = [c[1] for c in agent_memory._db_read("PRAGMA table_info({})".format(T))]
+    cols = [c[1] for c in agent_memory._db_read(f"PRAGMA table_info({T})")]
     if prop in cols:
-        cmd = "SELECT " + prop + " FROM " + T + " WHERE uuid=?"
+        cmd = f"SELECT {prop} FROM {T} WHERE uuid=?"
         r = agent_memory._db_read(cmd, mem.memid)
         return r[0][0]
     # is it a triple?
     triples = agent_memory.get_triples(subj=mem.memid, pred_text=prop, return_obj_text="always")
     if len(triples) > 0:
-        if get_all:
-            return [t[2] for t in triples]
-        else:
-            return triples[0][2]
-
+        return [t[2] for t in triples] if get_all else triples[0][2]
     return None
 
 
@@ -108,38 +98,34 @@ def search_by_property(agent_memory, prop, value, comparison_symbol, memtype):
     3: triple with the nodes memid as subject and prop as predicate
     """
     try:
-        if comparison_symbol != "%" or comparison_symbol != "<>":
-            assert len(value) == 1
-        else:
-            assert len(value) == 2
+        assert len(value) == 1
     except:
         raise Exception(
-            "comparison symbol in basic search is {} but value is {}".format(
-                comparison_symbol, value
-            )
+            f"comparison symbol in basic search is {comparison_symbol} but value is {value}"
         )
 
+
     if comparison_symbol == "%":
-        where = "WHERE " + prop + " % " + str(value[0]) + " =?"
+        where = f"WHERE {prop} % {str(value[0])} =?"
         v = value[1]
     elif comparison_symbol == "<>":
-        where = "WHERE " + prop + ">? AND " + prop + "<?"
+        where = f"WHERE {prop}>? AND {prop}<?"
         v = value
     else:
-        where = "WHERE " + prop + comparison_symbol + "?"
+        where = f"WHERE {prop}{comparison_symbol}?"
         v = value
 
     # is it in the main memory table?
     cols = [c[1] for c in agent_memory._db_read("PRAGMA table_info(Memories)")]
     if prop in cols:
-        cmd = "SELECT uuid FROM Memories " + where
+        cmd = f"SELECT uuid FROM Memories {where}"
         return [m[0] for m in agent_memory._db_read(cmd, *v)]
 
     # is it in the node table?
     T = agent_memory.nodes[memtype].TABLE
-    cols = [c[1] for c in agent_memory._db_read("PRAGMA table_info({})".format(T))]
+    cols = [c[1] for c in agent_memory._db_read(f"PRAGMA table_info({T})")]
     if prop in cols:
-        cmd = "SELECT uuid FROM " + T + " " + where
+        cmd = f"SELECT uuid FROM {T} {where}"
         return [m[0] for m in agent_memory._db_read(cmd, *v)]
 
     # is it a triple?
@@ -149,7 +135,7 @@ def search_by_property(agent_memory, prop, value, comparison_symbol, memtype):
 
     # FIXME! it is assumed for now that the value is the obj_text, not the obj; need to
     # to introduce special comparison_symbol for the obj memid case
-    if comparison_symbol != "=" and comparison_symbol != "=#=":
+    if comparison_symbol not in ["=", "=#="]:
         raise Exception("Triple values need to have '=' or '=#=' as comparison symbol for now")
     if comparison_symbol == "=":
         triples = agent_memory.get_triples(pred_text=prop, obj_text=value[0])
@@ -166,7 +152,7 @@ def try_float(value, where_clause):
     try:
         return float(value)
     except:
-        raise Exception("tried to get float from {} in {}".format(value, where_clause))
+        raise Exception(f"tried to get float from {value} in {where_clause}")
 
 
 def argval_subsample_idx(values, n, polarity="MAX"):
@@ -187,10 +173,9 @@ def random_subsample_idx(num_mems, n, same="DISALLOWED"):
         replace = False
         if n > num_mems:
             raise Exception(
-                "RANDOM selection supposed to return {} memories withour replacement but only got {}".format(
-                    n, num_mems
-                )
+                f"RANDOM selection supposed to return {n} memories withour replacement but only got {num_mems}"
             )
+
     return torch.multinomial(torch.ones(num_mems), n, replacement=replace).tolist()
 
 
@@ -242,10 +227,7 @@ class MemorySearcher:
         self.ignore_self = ignore_self
 
     def maybe_convert_query(self, query):
-        if type(query) is str:
-            return sqly_to_new_filters(query)
-        else:
-            return query
+        return sqly_to_new_filters(query) if type(query) is str else query
 
     def handle_where(self, agent_memory, where_clause, memtype):
         """ 
@@ -253,14 +235,18 @@ class MemorySearcher:
         """
         # do this brutally for now, if we need can make more efficient
         if where_clause.get("AND"):
-            memid_lists = []
-            for c in where_clause["AND"]:
-                memid_lists.append(self.handle_where(agent_memory, c, memtype))
+            memid_lists = [
+                self.handle_where(agent_memory, c, memtype)
+                for c in where_clause["AND"]
+            ]
+
             return list(set.intersection(*[set(m) for m in memid_lists]))
         if where_clause.get("OR"):
-            memid_lists = []
-            for c in where_clause["OR"]:
-                memid_lists.append(self.handle_where(agent_memory, c, memtype))
+            memid_lists = [
+                self.handle_where(agent_memory, c, memtype)
+                for c in where_clause["OR"]
+            ]
+
             return list(set.union(*[set(m) for m in memid_lists]))
         if where_clause.get("NOT"):
             # FIXME memtype might be a union of node types
@@ -268,9 +254,10 @@ class MemorySearcher:
             memtypes = agent_memory.node_children[memtype]
             node_type_clause = ("OR node_type=? " * len(memtypes))[3:-1]
             all_memids = agent_memory._db_read(
-                "SELECT uuid FROM Memories WHERE " + node_type_clause, *memtypes
+                f"SELECT uuid FROM Memories WHERE {node_type_clause}", *memtypes
             )
-            all_memids = set([m[0] for m in all_memids])
+
+            all_memids = {m[0] for m in all_memids}
             memids = self.handle_where(agent_memory, where_clause["NOT"][0], memtype)
             return list(all_memids - set(memids))
 
@@ -281,10 +268,9 @@ class MemorySearcher:
             input_right = where_clause["input_right"]["value_extractor"]
             if type(input_left) is dict or type(input_right) is dict:
                 raise Exception(
-                    "currently search assumes comparator attributes are explicitly stored property of the memory: {}".format(
-                        where_clause
-                    )
+                    f"currently search assumes comparator attributes are explicitly stored property of the memory: {where_clause}"
                 )
+
             ctype = where_clause.get("comparison_type", "EQUAL")
             comparison_symbol = get_inequality_symbol(ctype)
             # FIXME do close tolerance for modulus
@@ -292,7 +278,7 @@ class MemorySearcher:
                 comparison_symbol = "<>"
                 v = try_float(input_right, where_clause)
                 value = (v - ctype["close_tolerance"], v + ctype["close_tolerance"])
-            elif comparison_symbol[0] == "<" or comparison_symbol[0] == ">":
+            elif comparison_symbol[0] in ["<", ">"]:
                 # going to convert back to str later, doing this for data sanitation/debugging
                 value = (try_float(input_right, where_clause),)
             elif type(ctype) is dict and ctype.get("modulus"):
@@ -308,7 +294,7 @@ class MemorySearcher:
         try:
             check_well_formed_triple(where_clause)
         except:
-            raise Exception("poorly formed triple dict{}".format(where_clause))
+            raise Exception(f"poorly formed triple dict{where_clause}")
         # run any subqueries:
         for k, v in where_clause.items():
             if callable(v):
@@ -323,7 +309,7 @@ class MemorySearcher:
                     # should we force subqueries to have proper selectors?
                     where_clause[k] = vals[0]
                 except:
-                    raise Exception("error in subquery {}".format(where_clause))
+                    raise Exception(f"error in subquery {where_clause}")
 
         triples = agent_memory.get_triples(**where_clause)
         node_children = agent_memory.node_children[memtype]
@@ -335,41 +321,36 @@ class MemorySearcher:
             return []
 
     def handle_selector(self, agent_memory, query, memids):
-        if query.get("selector"):
-            selector_d = query["selector"]
-            if selector_d.get("location"):
-                raise Exception(
-                    "queries with location selectors not yet implemented in basic search: query={}".format(
-                        query
-                    )
-                )
-            ordinal = int(selector_d.get("ordinal", 1))
-            return_q = selector_d.get("return_quantity")
-            if not return_q:
-                raise Exception("selector subdict with no return_quantity: query={}".format(query))
-            if return_q == "random":
-                same = selector_d.get("same", "DISALLOWED")
-                idxs = random_subsample_idx(len(memids), ordinal, same=same)
-            elif type(return_q) is dict and return_q.get("argval"):
-                try:
-                    attribute_name = return_q["argval"]["quantity"]["attribute"]
-                except:
-                    raise Exception(
-                        "malformed selector return quantity clause: {}".format(return_q)
-                    )
-                if type(attribute_name) is not str:
-                    raise Exception(
-                        "selector return quantity in basic search should be simple property, instead got: {}".format(
-                            attribute_name
-                        )
-                    )
-                vals = [get_property_value(agent_memory, m, attribute_name) for m in memids]
-                idxs = argval_subsample_idx(
-                    vals, ordinal, polarity=return_q["argval"].get("polarity", "MAX")
-                )
-            return [memids[i] for i in idxs]
-        else:
+        if not query.get("selector"):
             return memids
+        selector_d = query["selector"]
+        if selector_d.get("location"):
+            raise Exception(
+                f"queries with location selectors not yet implemented in basic search: query={query}"
+            )
+
+        ordinal = int(selector_d.get("ordinal", 1))
+        return_q = selector_d.get("return_quantity")
+        if not return_q:
+            raise Exception(f"selector subdict with no return_quantity: query={query}")
+        if return_q == "random":
+            same = selector_d.get("same", "DISALLOWED")
+            idxs = random_subsample_idx(len(memids), ordinal, same=same)
+        elif type(return_q) is dict and return_q.get("argval"):
+            try:
+                attribute_name = return_q["argval"]["quantity"]["attribute"]
+            except:
+                raise Exception(f"malformed selector return quantity clause: {return_q}")
+            if type(attribute_name) is not str:
+                raise Exception(
+                    f"selector return quantity in basic search should be simple property, instead got: {attribute_name}"
+                )
+
+            vals = [get_property_value(agent_memory, m, attribute_name) for m in memids]
+            idxs = argval_subsample_idx(
+                vals, ordinal, polarity=return_q["argval"].get("polarity", "MAX")
+            )
+        return [memids[i] for i in idxs]
 
     def handle_output(self, agent_memory, query, memids):
         output = query.get("output", "MEMORY")
@@ -382,20 +363,19 @@ class MemorySearcher:
                 try:
                     attribute_name_list = [output["attribute"]]
                 except:
-                    raise Exception("malformed output clause: {}".format(query))
+                    raise Exception(f"malformed output clause: {query}")
             elif type(output) is list:
                 try:
                     attribute_name_list = [a["attribute"] for a in output]
                 except:
-                    raise Exception("malformed output clause: {}".format(query))
+                    raise Exception(f"malformed output clause: {query}")
             values_dict = {m: [] for m in memids}
             for aname in attribute_name_list:
                 if type(aname) is not str:
                     raise Exception(
-                        "output attribute in basic search should be (list of) simple properties, instead got: {}".format(
-                            attribute_name_list
-                        )
+                        f"output attribute in basic search should be (list of) simple properties, instead got: {attribute_name_list}"
                     )
+
                 for m in memids:
                     values_dict[m].append(get_property_value(agent_memory, m, aname))
             if len(attribute_name_list) == 1:
@@ -479,7 +459,7 @@ class MemoryFilter:
         self.head = F.head or F
 
     def all_table_memids(self):
-        cmd = "SELECT MEMORY FROM " + self.memtype
+        cmd = f"SELECT MEMORY FROM {self.memtype}"
         memids, _ = self.memory.basic_search(cmd)
         return memids
 
@@ -500,18 +480,14 @@ class MemoryFilter:
     def __call__(self, mems=None, vals=None):
         if self.preceding:
             mems, vals = self.preceding(mems=mems, vals=vals)
-        if mems is None:
-            # specifically excluding the case where mems=[]; then should filter
-            return self.search()
-        else:
-            return self.filter(mems, vals)
+        return self.search() if mems is None else self.filter(mems, vals)
 
     def _selfstr(self):
         return self.__class__.__name__
 
     def __repr__(self):
         if self.preceding:
-            return self._selfstr() + " <-- " + str(self.preceding)
+            return f"{self._selfstr()} <-- {str(self.preceding)}"
         else:
             return self._selfstr()
 
@@ -569,7 +545,7 @@ class ApplyAttribute(MemoryFilter):
         return memids, self.attribute([self.memory.get_mem_by_id(m) for m in memids])
 
     def _selfstr(self):
-        return "Apply " + str(self.attribute)
+        return f"Apply {str(self.attribute)}"
 
 
 class RandomMemorySelector(MemoryFilter):
@@ -588,7 +564,7 @@ class RandomMemorySelector(MemoryFilter):
         return [memids[i] for i in idxs], [vals[i] for i in idxs]
 
     def _selfstr(self):
-        return "Random " + str(self.n) + " SAME " + self.same
+        return f"Random {str(self.n)} SAME {self.same}"
 
 
 class ExtremeValueMemorySelector(MemoryFilter):
@@ -668,9 +644,7 @@ class OrFilter(LogicalOperationFilter):
         return self.filter(mems, vals)
 
     def filter(self, memids, vals):
-        outmems = {}
-        for i in range(len(memids)):
-            outmems[memids[i]] = vals[i]
+        outmems = {memids[i]: vals[i] for i in range(len(memids))}
         memids, vals = outmems.items()
         return list(memids), list(vals)
 
@@ -759,7 +733,7 @@ class BasicFilter(MemoryFilter):
         return filtered_memids, filtered_vals
 
     def _selfstr(self):
-        return "Basic: (" + str(self.query) + ")"
+        return f"Basic: ({str(self.query)})"
 
 
 class BackoffFilter(MemoryFilter):
@@ -792,4 +766,4 @@ class BackoffFilter(MemoryFilter):
         return [], []
 
     def _selfstr(self):
-        return "Backoff (" + str([f for f in self.filters]) + ")"
+        return f"Backoff ({list(self.filters)})"

@@ -53,7 +53,7 @@ class BaseCraftassistTestCase(unittest.TestCase):
 
         If "stop_on_chat" is specified, stop iterating if the agent says anything
         """
-        chatstr = chatstr or "TEST {}".format(d)
+        chatstr = chatstr or f"TEST {d}"
         self.add_incoming_chat(chatstr, self.speaker)
         self.agent.set_logical_form(d, chatstr, self.speaker)
         changes = self.flush(max_steps, stop_on_chat=stop_on_chat)
@@ -82,10 +82,12 @@ class BaseCraftassistTestCase(unittest.TestCase):
 
         # get changes
         world_after = self.world.blocks_to_dict()
-        changes = dict(set(world_after.items()) - set(world_before.items()))
-        changes.update({k: (0, 0) for k in set(world_before.keys()) - set(world_after.keys())})
+        changes = dict(set(world_after.items()) - set(world_before.items())) | {
+            k: (0, 0) for k in set(world_before.keys()) - set(world_after.keys())
+        }
+
         if i == max_steps - 1:
-            print("warning in {} : agent ran till max_steps".format(self))
+            print(f"warning in {self} : agent ran till max_steps")
         return changes
 
     def agent_should_stop(self, stop_on_chat=False):
@@ -128,7 +130,7 @@ class BaseCraftassistTestCase(unittest.TestCase):
 
     def add_incoming_chat(self, chat: str, speaker_name: str):
         """Add a chat to memory as if it was just spoken by SPEAKER"""
-        self.world.chat_log.append("<" + speaker_name + ">" + " " + chat)
+        self.world.chat_log.append(f"<{speaker_name}> {chat}")
 
     #        self.agent.memory.add_chat(self.agent.memory.get_player_by_name(self.speaker).memid, chat)
 

@@ -22,12 +22,14 @@ from droidlet.memory.memory_nodes import TaskNode, LocationNode, TripleNode
 def maybe_update_condition_memid(condition, memid, pos="value_left"):
     if hasattr(condition, pos):
         v = getattr(condition, pos)
-        if hasattr(v, "memory_filter"):
-            if hasattr(v.memory_filter.head, "memid"):
-                if v.memory_filter.head.memid == "NULL":
-                    # this was a special "THIS" filter condition, needed to wait till here
-                    # to get memid
-                    v.memory_filter.head.memid = memid
+        if (
+            hasattr(v, "memory_filter")
+            and hasattr(v.memory_filter.head, "memid")
+            and v.memory_filter.head.memid == "NULL"
+        ):
+            # this was a special "THIS" filter condition, needed to wait till here
+            # to get memid
+            v.memory_filter.head.memid = memid
 
 
 class Task(object):

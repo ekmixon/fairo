@@ -119,7 +119,7 @@ class Slam(object):
 
             if not os.path.isdir(self.seg_folder):
                 os.makedirs(self.seg_folder)
-        
+
         self.last_pos = self.robot.base.get_state()
 
         self.start_vis = False
@@ -242,13 +242,13 @@ class Slam(object):
 
         # convert goal from map space to robot space
         stg_real = self.map2real([self.stg[1], self.stg[0]])
-        print("stg = {}".format(self.stg))
-        print("stg real = {}".format(stg_real))
+        print(f"stg = {self.stg}")
+        print(f"stg real = {stg_real}")
 
         # convert stg real from init frame to global frame of pyrobot
         stg_real_g = self.get_absolute_goal((stg_real[0], stg_real[1], 0))
         robot_state = self.get_rel_state(self.get_robot_global_state(), self.init_state)
-        print("bot_state before executing action = {}".format(robot_state))
+        print(f"bot_state before executing action = {robot_state}")
 
         # orient the robot
         exec = self.robot.base.go_to_relative(
@@ -265,9 +265,6 @@ class Slam(object):
         while self.robot.base._as.get_state() == LocalActionStatus.ACTIVE:
             if self.save_vis:
                 self.save_rgb_depth_seg()
-            else:
-                pass
-
         # update map
         traversable = self.update_map()
 
@@ -305,7 +302,7 @@ class Slam(object):
                     self.save_rgb_depth_seg()
 
         robot_state = self.get_rel_state(self.get_robot_global_state(), self.init_state)
-        print("bot_state after executing action = {}".format(robot_state))
+        print(f"bot_state after executing action = {robot_state}")
 
         # update robot location list
         robot_state_map = self.real2map(robot_state[:2])
@@ -319,16 +316,18 @@ class Slam(object):
             # add obstacle in front of  cur location
             self.col_map += self.get_collision_map(robot_state)
         # in case of locobot we need to check bumper state
-        if self.robot_name == "locobot":
-            if len(self.bumper_state.bumper_state) > 0:
-                for bumper_num in self.bumper_state.bumper_state:
-                    self.col_map += self.get_collision_map(
-                        (
-                            robot_state[0],
-                            robot_state[1],
-                            robot_state[2] + self.bumper_num2ang[bumper_num],
-                        )
+        if (
+            self.robot_name == "locobot"
+            and len(self.bumper_state.bumper_state) > 0
+        ):
+            for bumper_num in self.bumper_state.bumper_state:
+                self.col_map += self.get_collision_map(
+                    (
+                        robot_state[0],
+                        robot_state[1],
+                        robot_state[2] + self.bumper_num2ang[bumper_num],
                     )
+                )
 
         # return True if robot reaches within threshold
         if (
@@ -342,8 +341,6 @@ class Slam(object):
             while self.robot.base._as.get_state() == LocalActionStatus.ACTIVE:
                 if self.save_vis:
                     self.save_rgb_depth_seg()
-                else:
-                    pass
             return True
 
         # return False if goal is not reachable
@@ -616,10 +613,13 @@ def main(args):
         time.sleep(10.0)
         try:
             config = {
-                "physics_config": os.path.join(assets_path, "default.phys_scene_config.json"),
-                "scene_path": "{}/{}/habitat/mesh_semantic.ply".format(args.dataset_path, scene),
+                "physics_config": os.path.join(
+                    assets_path, "default.phys_scene_config.json"
+                ),
+                "scene_path": f"{args.dataset_path}/{scene}/habitat/mesh_semantic.ply",
             }
-            args.store_path = "./tmp/{}".format(scene)
+
+            args.store_path = f"./tmp/{scene}"
             robot = Robot("habitat", common_config=config)
             agent_state = robot.base.agent.get_state()
             # place the robot at place where it can move
@@ -630,7 +630,7 @@ def main(args):
             agent_state.sensor_states["depth"].position = copy(p + np.array([0.0, 0.6, 0.0]))
             agent_state.sensor_states["semantic"].position = copy(p + np.array([0.0, 0.6, 0.0]))
             robot.base.agent.set_state(agent_state)
-            print("trying scene = {}".format(scene))
+            print(f"trying scene = {scene}")
 
             slam = Slam(
                 robot,
@@ -667,7 +667,7 @@ def main(args):
             os.system("rm {}/*.jpg".format(slam.save_folder))
             """
         except:
-            print("not able to open the scene = {}".format(scene))
+            print(f"not able to open the scene = {scene}")
 
     elif args.robot == "locobot":
         robot = Robot("locobot")

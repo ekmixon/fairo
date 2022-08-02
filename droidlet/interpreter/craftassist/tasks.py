@@ -216,26 +216,26 @@ class Move(BaseMovementTask):
         for (pos, idm) in R:
             agent.set_held_item(idm)
             if agent.place_block(*pos):
-                logging.debug("Move: replaced {}".format((pos, idm)))
+                logging.debug(f"Move: replaced {(pos, idm)}")
             else:
                 # try again later
                 self.replace.add((pos, idm))
         if len(self.replace) > 0:
-            logging.debug("Replace remaining: {}".format(self.replace))
+            logging.debug(f"Replace remaining: {self.replace}")
 
         # check if finished
         if manhat_dist(tuple(agent.pos), self.target) <= self.approx:
             if len(self.replace) > 0:
-                logging.error("Move finished with non-empty replace set: {}".format(self.replace))
+                logging.error(f"Move finished with non-empty replace set: {self.replace}")
             self.finished = True
             return
 
         # get path
         if self.path is None or tuple(agent.pos) != self.path[-1]:
             self.path = search.astar(agent, self.target, self.approx)
-            if self.path is None:
-                self.handle_no_path(agent)
-                return
+        if self.path is None:
+            self.handle_no_path(agent)
+            return
 
         # take a step on the path
         assert tuple(agent.pos) == self.path.pop()
@@ -262,7 +262,7 @@ class Move(BaseMovementTask):
                 break
 
     def __repr__(self):
-        return "<Move {} ±{}>".format(self.target, self.approx)
+        return f"<Move {self.target} ±{self.approx}>"
 
 
 class Build(Task):
@@ -319,10 +319,9 @@ class Build(Task):
                         agent.memory.get_triples(subj=mem.memid, pred_text=pred)
                     )
                 logging.debug(
-                    "Destroying block object {} tags={}".format(
-                        mem.memid, self.destroyed_block_object_triples
-                    )
+                    f"Destroying block object {mem.memid} tags={self.destroyed_block_object_triples}"
                 )
+
 
         # modify the schematic to avoid placing certain blocks
         for bad, good in BUILD_BLOCK_REPLACE_MAP.items():

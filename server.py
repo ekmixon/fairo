@@ -38,7 +38,7 @@ class OfflineInstance():
     
     def init_event_handlers(self): 
         @sio.on("offline_label_propagation")
-        def offline_label_propagation(sid, postData): 
+        def offline_label_propagation(sid, postData):
             """
             postData: 
                 filepath: where to access rgb/depth/pose data on disk
@@ -57,14 +57,14 @@ class OfflineInstance():
             cur_file_num = "".join(["0" for _ in range(cur_num_zeros)]) + str(postData["curFrame"])
             src_num_zeros = 5 - len(str(postData["srcFrame"]))
             src_file_num = "".join(["0" for _ in range(src_num_zeros)]) + str(postData["srcFrame"])
-            
-            rgb_filename = os.path.join(rgb_path, cur_file_num + ".jpg")
+
+            rgb_filename = os.path.join(rgb_path, f"{cur_file_num}.jpg")
             src_img = cv2.imread(rgb_filename)
             height, width, _ = src_img.shape
 
-            depth_filename = os.path.join(depth_path, cur_file_num + ".npy")
+            depth_filename = os.path.join(depth_path, f"{cur_file_num}.npy")
             cur_depth = np.load(depth_filename)
-            src_depth_filename = os.path.join(depth_path, src_file_num + ".npy")
+            src_depth_filename = os.path.join(depth_path, f"{src_file_num}.npy")
             src_depth = np.load(src_depth_filename)
 
             # Labels map
@@ -76,7 +76,7 @@ class OfflineInstance():
                 pose_dict = json.load(file)
             src_pose = pose_dict[str(postData["srcFrame"])]
             cur_pose = pose_dict[str(postData["curFrame"])]
-            
+
             LabelProp = LabelPropagate()
             res_labels = LabelProp(src_img, src_depth, src_label, src_pose, cur_pose, cur_depth)
 
@@ -85,9 +85,9 @@ class OfflineInstance():
 
             # Returns an array of objects with updated masks
             sio.emit("labelPropagationReturn", objects)
-        
+
         @sio.on("offline_save_rgb_seg")
-        def offline_save_rgb_seg(sid, postData): 
+        def offline_save_rgb_seg(sid, postData):
             """
             postData: 
                 filepath: where to access rgb data on disk
@@ -106,7 +106,7 @@ class OfflineInstance():
             rgb_path = os.path.join(postData["filepath"], "rgb")
             num_zeros = 5 - len(str(postData["frameId"]))
             file_num = "".join(["0" for _ in range(num_zeros)]) + str(postData["frameId"])
-            rgb_filename = os.path.join(rgb_path, file_num + ".jpg")
+            rgb_filename = os.path.join(rgb_path, f"{file_num}.jpg")
             rgb = cv2.imread(rgb_filename)
             height, width, _ = rgb.shape
 
@@ -140,7 +140,7 @@ class OfflineInstance():
         def retrain_detector(sid, settings={}): 
             inference_json = LP.retrain_detector(settings)
             sio.emit("annotationRetrain", inference_json)
-        
+
         # Send first frame in folder
         @sio.on("start_offline_dashboard")
         def start_offline_dashboard(sid, filepath): 
@@ -156,7 +156,7 @@ class OfflineInstance():
 
 
 if __name__ == "__main__":
-    
+
     base_path = os.path.dirname(__file__)
     parser = ArgumentParser("Locobot", base_path)
     opts = parser.parse()
@@ -167,7 +167,7 @@ if __name__ == "__main__":
     sh.setFormatter(log_formatter)
     logger = logging.getLogger()
     logger.addHandler(sh)
-    logging.info("LOG LEVEL: {}".format(logger.level))
+    logging.info(f"LOG LEVEL: {logger.level}")
 
     oi = OfflineInstance()
 

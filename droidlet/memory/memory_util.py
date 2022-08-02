@@ -8,7 +8,7 @@ def parse_sql(query):
     operation = ""
     for word in query:
         if word.isupper():
-            operation += word + " "
+            operation += f"{word} "
         else:
             table += word
     return table, operation

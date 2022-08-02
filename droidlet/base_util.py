@@ -47,7 +47,7 @@ def hash_user(username):
     """Encrypt username"""
     # uuid is used to generate a random number
     salt = uuid.uuid4().hex
-    return hashlib.sha256(salt.encode() + username.encode()).hexdigest() + ":" + salt
+    return f"{hashlib.sha256(salt.encode() + username.encode()).hexdigest()}:{salt}"
 
 
 def check_username(hashed_username, username):
@@ -77,9 +77,7 @@ def manhat_dist(a, b):
 
 def pos_to_np(pos):
     """Convert pos to numpy array"""
-    if pos is None:
-        return None
-    return np.array((pos.x, pos.y, pos.z))
+    return None if pos is None else np.array((pos.x, pos.y, pos.z))
 
 
 def shasum_file(path):
@@ -179,11 +177,7 @@ def arrange(arrangement, schematic=None, shapeparams={}):
     and returns the offsets"""
     N = shapeparams.get("N", 7)
     extra_space = shapeparams.get("extra_space", 1)
-    if schematic is None:
-        bounds = [0, 1, 0, 1, 0, 1]
-    else:
-        bounds = get_bounds(schematic)
-
+    bounds = [0, 1, 0, 1, 0, 1] if schematic is None else get_bounds(schematic)
     if N <= 0:
         raise NotImplementedError(
             "TODO arrangement just based on extra space, need to specify number for now"
@@ -212,10 +206,7 @@ def arrange(arrangement, schematic=None, shapeparams={}):
 
 def prepend_a_an(name):
     """Add a/an to a name"""
-    if name[0] in ["a", "e", "i", "o", "u"]:
-        return "an " + name
-    else:
-        return "a " + name
+    return f"an {name}" if name[0] in ["a", "e", "i", "o", "u"] else f"a {name}"
 
 
 def to_block_pos(array):

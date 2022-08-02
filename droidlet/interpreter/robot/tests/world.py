@@ -16,15 +16,11 @@ class Opt:
 def is_close_direction(x, y, tol):
     x = x / np.linalg.norm(x)
     y = y / np.linalg.norm(y)
-    if x @ y > tol:
-        return True
-    return False
+    return x @ y > tol
 
 
 def check_bounds(p, sl):
-    if p >= sl or p < 0:
-        return -1
-    return 1
+    return -1 if p >= sl or p < 0 else 1
 
 
 def make_human_opts():
@@ -61,14 +57,13 @@ class SimpleHuman:
         self.world.players.append(self)
 
     def get_info(self):
-        info = {}
-        info["pos"] = self.pos
-        info["pitch"] = self.pitch
-        info["yaw"] = self.yaw
-        info["name"] = self.name
-        # FIXME!
-        info["eid"] = self.name
-        return info
+        return {
+            "pos": self.pos,
+            "pitch": self.pitch,
+            "yaw": self.yaw,
+            "name": self.name,
+            "eid": self.name,
+        }
 
     def new_direction(self):
         new_direction = np.random.randn(2)
@@ -133,8 +128,7 @@ class World:
 
     # TODO fix objects etc.
     def get_info(self):
-        info = {}
-        info["agent"] = self.agent.get_info()
+        info = {"agent": self.agent.get_info()}
         info["humans"] = self.get_other_players()
         info["objects"] = [self.get_object_info(o) for o in self.objects]
         return info
@@ -159,14 +153,16 @@ class World:
         lv = look_vec(yaw, pitch)
         pos = np.array(pos)
         # does the ray intersect a player or object:
-        intersected = []
-        for p in self.players:
-            if is_close_direction(np.array(p.pos) - pos, lv, tol):
-                intersected.append(p.pos)
+        intersected = [
+            p.pos
+            for p in self.players
+            if is_close_direction(np.array(p.pos) - pos, lv, tol)
+        ]
+
         for o in self.objects:
             if is_close_direction(np.array(o["pos"]) - pos, lv, tol):
                 intersected.append(o["pos"])
-        if len(intersected) > 0:
+        if intersected:
             intersected.sort(key=lambda x: np.linalg.norm(np.array(x) - pos))
             return intersected[0]
 
@@ -181,4 +177,4 @@ class World:
 
     def add_incoming_chat(self, chat: str, speaker_name: str):
         """Add a chat to memory as if it was just spoken by SPEAKER."""
-        self.chat_log.append("<" + speaker_name + ">" + " " + chat)
+        self.chat_log.append(f"<{speaker_name}> {chat}")

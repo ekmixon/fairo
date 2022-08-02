@@ -88,8 +88,8 @@ class SwarmWorkerMemory():
         from the key-value store, indexed by the obj memid
         """
         for attr in NONPICKLE_ATTRS:
-            if hasattr(obj, "__swarm_had_attr_" + attr):
-                delattr(obj, "__swarm_had_attr_" + attr)
+            if hasattr(obj, f"__swarm_had_attr_{attr}"):
+                delattr(obj, f"__swarm_had_attr_{attr}")
                 setattr(obj, attr, self._safe_pickle_saved_attrs[obj.memid][attr])
 
     def safe_unpickle(self, bs):
@@ -115,7 +115,7 @@ class SwarmWorkerMemory():
                     self._safe_pickle_saved_attrs[obj.memid] = {}
                 val = getattr(obj, attr)
                 setattr(obj, attr, None)
-                setattr(obj, "__swarm_had_attr_" + attr, True)
+                setattr(obj, f"__swarm_had_attr_{attr}", True)
                 self._safe_pickle_saved_attrs[obj.memid][attr] = val
         p = pickle.dumps(obj)
         self.reinstate_attrs(obj)
@@ -124,8 +124,7 @@ class SwarmWorkerMemory():
     def _db_command(self, command_name, *args):
         query_id = uuid.uuid4().hex
         send_command = [query_id, command_name]
-        for a in args:
-            send_command.append(a)
+        send_command.extend(iter(args))
         self.send_queue.put(tuple(send_command))
         while query_id not in self.receive_dict.keys():
             x = self.receive_queue.get()
@@ -141,8 +140,7 @@ class SwarmWorkerMemory():
         if query == "INSERT INTO Tasks (uuid, action_name, pickled, prio, running, run_count, created) VALUES (?,?,?,?,?,?,?)":
             memid = args[0]
             self.tag(memid, self.memory_tag)
-        to_return = self._db_command("_db_write", query, *args)
-        return to_return
+        return self._db_command("_db_write", query, *args)
 
     def db_write(self, query: str, *args) -> int:
         return self._db_command("db_write", query, *args)

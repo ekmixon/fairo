@@ -37,7 +37,7 @@ def to_relative_pos(block_list):
     try:
         locs, idms = zip(*block_list)
     except ValueError:
-        raise ValueError("to_relative_pos invalid input: {}".format(block_list))
+        raise ValueError(f"to_relative_pos invalid input: {block_list}")
 
     locs = np.array([loc for (loc, idm) in block_list])
     origin = np.min(locs, axis=0)

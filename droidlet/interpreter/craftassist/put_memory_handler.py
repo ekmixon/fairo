@@ -105,11 +105,8 @@ class PutMemoryHandler(DialogueObject):
             raise ErrorWithResponse("I don't know what you're referring to")
         mem = r[0]
 
-        name = "it"
         triples = self.memory.get_triples(subj=mem.memid, pred_text="has_tag")
-        if len(triples) > 0:
-            name = triples[0][2].strip("_")
-
+        name = triples[0][2].strip("_") if len(triples) > 0 else "it"
         schematic_memid = (
             self.memory.convert_block_object_to_schematic(mem.memid).memid
             if isinstance(mem, VoxelObjectNode)
@@ -118,7 +115,7 @@ class PutMemoryHandler(DialogueObject):
 
         for t in self.action_dict["upsert"]["memory_data"].get("triples", []):
             if t.get("pred_text") and t.get("obj_text"):
-                logging.debug("Tagging {} {} {}".format(mem.memid, t["pred_text"], t["obj_text"]))
+                logging.debug(f'Tagging {mem.memid} {t["pred_text"]} {t["obj_text"]}')
                 self.memory.add_triple(
                     subj=mem.memid, pred_text=t["pred_text"], obj_text=t["obj_text"]
                 )

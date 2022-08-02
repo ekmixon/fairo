@@ -41,11 +41,7 @@ def compute_location_heuristic(mems, steps, reldir, memory):
             loc = tuple((np.add(mems[0].get_pos(), mems[1].get_pos())) / 2)
         elif reldir == "INSIDE":
             raise NotImplementedError
-        elif reldir == "NEAR":
-            pass
-        elif reldir == "AROUND":
-            pass
-        else:  # LEFT, RIGHT, etc...
+        elif reldir not in ["NEAR", "AROUND"]:  # LEFT, RIGHT, etc...
             reldir_vec = memory.coordinate_transforms.DIRECTIONS[reldir]
             yaw, _ = self_mem.get_yaw_pitch()  # work in agent frame
             # this should be an inverse transform so we set inverted=True

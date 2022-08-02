@@ -102,7 +102,7 @@ class ArgumentParser:
         IP = "192.168.1.244"
         if os.getenv("LOCOBOT_IP"):
             IP = os.getenv("LOCOBOT_IP")
-            print("setting default locobot ip from env variable LOCOBOT_IP={}".format(IP))
+            print(f"setting default locobot ip from env variable LOCOBOT_IP={IP}")
         loco_parser.add_argument("--ip", default=IP, help="IP of the locobot")
         loco_parser.add_argument(
             "--incoming_chat_path", default="incoming_chat.txt", help="path to incoming chat file"
@@ -126,9 +126,8 @@ class ArgumentParser:
             base_path = opts.model_base_path
         od = opts.__dict__
         for optname, optval in od.items():
-            if "path" in optname or "dir" in optname:
-                if optval:
-                    od[optname] = os.path.join(base_path, optval)
+            if ("path" in optname or "dir" in optname) and optval:
+                od[optname] = os.path.join(base_path, optval)
         return opts
 
     def parse(self):

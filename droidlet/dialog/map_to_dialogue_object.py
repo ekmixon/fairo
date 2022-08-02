@@ -53,9 +53,7 @@ class DialogueObjectMapper(object):
         if not self.is_safe(chat):
             return Say("Please don't be rude.", memory=self.dialogue_manager.memory)
 
-        # 2. Check if incoming chat is one of the scripted ones in greetings
-        reply = self.get_greeting_reply(chat)
-        if reply:
+        if reply := self.get_greeting_reply(chat):
             return Say(reply, memory=self.dialogue_manager.memory)
 
         # 3. postprocess logical form: process spans + resolve coreference
@@ -72,10 +70,10 @@ class DialogueObjectMapper(object):
         """This function performs some postprocessing on the logical form:
         substitutes indices with words and resolves coreference"""
         # perform lemmatization on the chat
-        logging.debug('chat before lemmatization "{}"'.format(chat))
+        logging.debug(f'chat before lemmatization "{chat}"')
         lemmatized_chat = spacy_model(chat)
         lemmatized_chat_str = " ".join(str(word.lemma_) for word in lemmatized_chat)
-        logging.debug('chat after lemmatization "{}"'.format(lemmatized_chat_str))
+        logging.debug(f'chat after lemmatization "{lemmatized_chat_str}"')
 
         # Get the words from indices in spans and substitute fixed_values
         # NOTE: updates are made to the dictionary in-place
@@ -96,14 +94,15 @@ class DialogueObjectMapper(object):
                 }
             )
         )
-        logging.debug('ttad pre-coref "{}" -> {}'.format(lemmatized_chat_str, logical_form))
+        logging.debug(f'ttad pre-coref "{lemmatized_chat_str}" -> {logical_form}')
 
         # Resolve any co-references like "this", "that" "there" using heuristics
         # and make updates in the dictionary in place.
         coref_resolve(self.dialogue_manager.memory, logical_form, chat)
         logging.debug(
-            'logical form post co-ref "{}" -> {}'.format(hash_user(speaker), logical_form)
+            f'logical form post co-ref "{hash_user(speaker)}" -> {logical_form}'
         )
+
         return logical_form
 
     def handle_logical_form(
@@ -127,7 +126,7 @@ class DialogueObjectMapper(object):
         elif logical_form["dialogue_type"] == "GET_MEMORY":
             return self.dialogue_objects["get_memory"](speaker, logical_form, memory=memory)
         else:
-            raise ValueError("Bad dialogue_type={}".format(logical_form["dialogue_type"]))
+            raise ValueError(f'Bad dialogue_type={logical_form["dialogue_type"]}')
 
     def is_safe(self, chat):
         """Check that chat does not contain any word from the

@@ -1,14 +1,13 @@
 """
 Copyright (c) Facebook, Inc. and its affiliates.
 """
+
 import unittest
 import os
 from .test_utils import assert_distance_moved, assert_turn_degree
 from droidlet.lowlevel.locobot.locobot_mover import LoCoBotMover
 
-IP = "127.0.0.1"
-if os.getenv("LOCOBOT_IP"):
-    IP = os.getenv("LOCOBOT_IP")
+IP = os.getenv("LOCOBOT_IP") or "127.0.0.1"
 
 
 class MoverTests(unittest.TestCase):

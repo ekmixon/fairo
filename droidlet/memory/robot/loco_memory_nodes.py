@@ -29,7 +29,7 @@ class DetectedObjectNode(ReferenceObjectNode):
         self.pos = (x, y, z)
 
     def __repr__(self):
-        return "DetectedObject id {}, pos {}".format(self.obj_id, self.pos)
+        return f"DetectedObject id {self.obj_id}, pos {self.pos}"
 
     @classmethod
     def create(cls, memory, detected_obj) -> str:
@@ -105,13 +105,10 @@ class DetectedObjectNode(ReferenceObjectNode):
 
     @classmethod
     def get_all(cls, memory) -> list:
-        objs = []
         detected_objs = memory._db_read(
             "SELECT uuid, eid, x, y, z FROM ReferenceObjects WHERE ref_type=?", cls.NODE_TYPE
         )
-        for node in detected_objs:
-            objs.append(cls.from_node(memory, node))
-        return objs
+        return [cls.from_node(memory, node) for node in detected_objs]
 
     @classmethod
     def from_node(cls, memory, node) -> list:
@@ -189,7 +186,7 @@ class HumanPoseNode(ReferenceObjectNode):
         self.pos = (x, y, z)
 
     def __repr__(self):
-        return "HumanPose id {}, pos {}".format(self.obj_id, self.pos)
+        return f"HumanPose id {self.obj_id}, pos {self.pos}"
 
     @classmethod
     def create(cls, memory, humanpose) -> str:

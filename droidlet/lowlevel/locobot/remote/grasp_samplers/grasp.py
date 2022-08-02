@@ -81,7 +81,7 @@ class Grasper(object):
         self.grasp_height = 0.13
         self.default_Q = Quaternion(0.0, 0.0, 0.0, 1.0)
         self.grasp_Q = Quaternion(0.0, 0.707, 0.0, 0.707)
-        self.retract_position = list([-1.5, 0.5, 0.3, -0.7, 0.0])
+        self.retract_position = [-1.5, 0.5, 0.3, -0.7, 0.0]
         self.reset_pan = 0.0
         self.reset_tilt = 0.8
         self.n_tries = 5
@@ -134,16 +134,13 @@ class Grasper(object):
                         nps += 1
                 except:
                     pass
-        if nps == 0.0:
-            return 0.0
-        else:
-            return sum_z / nps
+        return 0.0 if nps == 0.0 else sum_z / nps
 
     def _get_3D_camera(self, pt, norm_z=None):
         assert len(pt) == 2
         cur_depth = self._process_depth()
         z = self._get_z_mean(cur_depth, [pt[0], pt[1]])
-        rospy.loginfo("depth of point is : {}".format(z))
+        rospy.loginfo(f"depth of point is : {z}")
         if z == 0.0:
             raise RuntimeError
         if norm_z is not None:
@@ -151,7 +148,7 @@ class Grasper(object):
         u = pt[1]
         v = pt[0]
         P = copy.deepcopy(self.robot.camera.camera_P)
-        rospy.loginfo("P is: {}".format(P))
+        rospy.loginfo(f"P is: {P}")
         P_n = np.zeros((3, 3))
         P_n[:, :2] = P[:, :2]
         P_n[:, 2] = P[:, 3] + P[:, 2] * z
@@ -163,25 +160,23 @@ class Grasper(object):
 
     def _convert_frames(self, pt):
         assert len(pt) == 3
-        rospy.loginfo("Point to convert: {}".format(pt))
+        rospy.loginfo(f"Point to convert: {pt}")
         ps = PointStamped()
         ps.header.frame_id = KINECT_FRAME
         ps.point.x, ps.point.y, ps.point.z = pt
         base_ps = self._transform_listener.transformPoint(BASE_FRAME, ps)
         rospy.loginfo(
-            "transform : {}".format(
-                self._transform_listener.lookupTransform(BASE_FRAME, KINECT_FRAME, droidlet.shared_data_structs.Time(0))
-            )
+            f"transform : {self._transform_listener.lookupTransform(BASE_FRAME, KINECT_FRAME, droidlet.shared_data_structs.Time(0))}"
         )
+
         base_pt = np.array([base_ps.point.x, base_ps.point.y, base_ps.point.z])
-        rospy.loginfo("Base point to convert: {}".format(base_pt))
+        rospy.loginfo(f"Base point to convert: {base_pt}")
         return base_pt
 
     def get_3D(self, pt, z_norm=None):
         temp_p = self._get_3D_camera(pt, z_norm)
-        rospy.loginfo("temp_p: {}".format(temp_p))
-        base_pt = self._convert_frames(temp_p)
-        return base_pt
+        rospy.loginfo(f"temp_p: {temp_p}")
+        return self._convert_frames(temp_p)
 
     def compute_grasp(self, dims=[(240, 480), (100, 540)], display_grasp=True):
         """Runs the grasp model to generate the best predicted grasp.
@@ -199,15 +194,15 @@ class Grasper(object):
         # load random image for testgin
         img = img[dims[0][0] : dims[0][1], dims[1][0] : dims[1][1]]
         selected_grasp = list(self.grasp_model.predict(img))
-        rospy.loginfo("Pixel grasp: {}".format(selected_grasp))
+        rospy.loginfo(f"Pixel grasp: {selected_grasp}")
         # img_grasp = copy.deepcopy(selected_grasp)
         if display_grasp:
             # self.grasp_model.display_predicted_image()
-            im_name = "{}.png".format(time.time())
-            store_path = "../grasp_logs/" + str(int(time.time()))
+            im_name = f"{time.time()}.png"
+            store_path = f"../grasp_logs/{int(time.time())}"
             if not os.path.isdir(store_path):
                 os.makedirs(store_path)
-            cv2.imwrite(store_path + "/{}".format(im_name), self.grasp_model._disp_I)
+            cv2.imwrite(store_path + f"/{im_name}", self.grasp_model._disp_I)
         selected_grasp[0] += dims[0][0]
         selected_grasp[1] += dims[1][0]
         selected_grasp[:2] = self.get_3D(selected_grasp[:2])[:2]
@@ -279,7 +274,7 @@ class Grasper(object):
         pregrasp_position = [grasp_pose[0], grasp_pose[1], self.pregrasp_height]
         grasp_angle = self.get_grasp_angle(grasp_pose)
 
-        rospy.loginfo("Going to pre-grasp pose:\n\n {} \n".format(pregrasp_position))
+        rospy.loginfo(f"Going to pre-grasp pose:\n\n {pregrasp_position} \n")
         result = self.set_pose(pregrasp_position, roll=0)
         if not result:
             return False
@@ -292,7 +287,7 @@ class Grasper(object):
 
         # going back to grasp position
         pregrasp_position = [grasp_pose[0], grasp_pose[1], self.pregrasp_height]
-        rospy.loginfo("Going to pre-grasp pose:\n\n {} \n".format(pregrasp_position))
+        rospy.loginfo(f"Going to pre-grasp pose:\n\n {pregrasp_position} \n")
         result = self.set_pose(pregrasp_position, roll=grasp_angle)
         if not result:
             return False
@@ -300,7 +295,7 @@ class Grasper(object):
 
         grasp_position = [grasp_pose[0], grasp_pose[1], self.grasp_height]
 
-        rospy.loginfo("Going to grasp pose:\n\n {} \n".format(grasp_position))
+        rospy.loginfo(f"Going to grasp pose:\n\n {grasp_position} \n")
         result = self.set_pose(grasp_position, roll=grasp_angle)
         if not result:
             return False
@@ -385,13 +380,13 @@ def main(args):
     grasper = Grasper(robot=robot, n_samples=args.n_samples, patch_size=args.patch_size)
     signal.signal(signal.SIGINT, grasper.signal_handler)
     for i in range(args.n_grasps):
-        rospy.loginfo("Grasp attempt #{}".format(i + 1))
+        rospy.loginfo(f"Grasp attempt #{i + 1}")
         success = grasper.reset()
         if not success:
             rospy.logerr("Arm reset failed")
             continue
         grasp_pose = grasper.compute_grasp(display_grasp=args.no_visualize)
-        print("\n\n Grasp Pose: \n\n {} \n\n".format(grasp_pose))
+        print(f"\n\n Grasp Pose: \n\n {grasp_pose} \n\n")
         grasper.grasp(grasp_pose)
 
 

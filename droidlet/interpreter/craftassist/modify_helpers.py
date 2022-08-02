@@ -33,16 +33,12 @@ def handle_rigidmotion(interpreter, speaker, modify_dict, obj):
     if angle or mirror:
         angle = angle or 0
         angle = {0: 0, "LEFT": -90, "RIGHT": 90, "AROUND": 180}[angle]
-        if mirror:
-            mirror = 0
-        else:
-            mirror = -1
+        mirror = 0 if mirror else -1
         new_schematic = maybe_convert_to_list(rotate(old_blocks, angle, mirror))
     else:
         no_change = True
         new_schematic = old_blocks
-    location_d = modify_dict.get("location")
-    if location_d:
+    if location_d := modify_dict.get("location"):
         mems = interpreter.subinterpret["reference_locations"](interpreter, speaker, location_d)
         steps, reldir = interpret_relative_direction(interpreter, location_d)
         origin, _ = interpreter.subinterpret["specify_locations"](
@@ -180,9 +176,8 @@ def handle_replace(interpreter, speaker, modify_dict, obj, block_data, color_bid
         )
     else:
         geom_d = modify_dict.get("replace_geometry")
-        geometry = {}
         schematic = maybe_convert_to_npy(old_blocks)
-        geometry["offset"] = np.array(schematic.shape[:3]) / 2
+        geometry = {"offset": np.array(schematic.shape[:3]) / 2}
         reldir = geom_d.get("relative_direction", "TOP")
         if reldir == "TOP":
             reldir = "UP"
@@ -193,9 +188,11 @@ def handle_replace(interpreter, speaker, modify_dict, obj, block_data, color_bid
         yaw, pitch = player_mem.get_yaw_pitch()
         dir_vec = rotation.transform(reldir_vec, yaw, 0, inverted=True)
         geometry["v"] = dir_vec
-        projections = []
-        for l, idm in old_blocks:
-            projections.append((np.array(l) - geometry["offset"]) @ reldir_vec)
+        projections = [
+            (np.array(l) - geometry["offset"]) @ reldir_vec
+            for l, idm in old_blocks
+        ]
+
         a = geom_d.get("amount", "HALF")
         if a == "QUARTER":
             geometry["threshold"] = (np.max(projections) - np.min(projections)) / 4
@@ -218,12 +215,11 @@ def handle_thicken(interpreter, speaker, modify_dict, obj):
     bounds = obj.get_bounds()
     mx, my, mz = (bounds[0], bounds[2], bounds[4])
     origin = [mx, my, mz]
-    if modify_dict.get("modify_type") == "THICKER":
-        num_blocks = modify_dict.get("num_blocks", 1)
-        new_blocks = thicker(old_blocks, delta=num_blocks)
-    else:
+    if modify_dict.get("modify_type") != "THICKER":
         raise ErrorWithResponse("I don't know how thin out blocks yet")
 
+    num_blocks = modify_dict.get("num_blocks", 1)
+    new_blocks = thicker(old_blocks, delta=num_blocks)
     destroy_task_data = {"schematic": old_blocks}
     # FIXME deal with tags!!!
     build_task_data = {

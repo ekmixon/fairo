@@ -17,7 +17,7 @@ etMob = 4
 class BaseLogReader:
     def __init__(self, logdir):
         self.logdir = logdir
-        fp = open(logdir + "/logging.bin", "rb")
+        fp = open(f"{logdir}/logging.bin", "rb")
         self.decoder = Decoder(fp)
         self.last_tick = -1
         self.player_eids = set()
@@ -25,7 +25,7 @@ class BaseLogReader:
     def start(self):
         version_major = self.decoder.readShort()
         version_minor = self.decoder.readShort()
-        print("Version: {}.{}".format(version_major, version_minor))
+        print(f"Version: {version_major}.{version_minor}")
 
         while True:
             try:
@@ -34,9 +34,12 @@ class BaseLogReader:
                 world_tick = self.decoder.readLong()
                 if world_tick < self.last_tick:
                     raise RuntimeError(
-                        "Error: {} < {}\n".format(world_tick, self.last_tick)
-                        + "buf_start={} hook_id={}".format(buf_start, hook_id)
+                        (
+                            f"Error: {world_tick} < {self.last_tick}\n"
+                            + f"buf_start={buf_start} hook_id={hook_id}"
+                        )
                     )
+
                 self.last_tick = world_tick
                 self.decode_and_handle_hook(hook_id, world_tick, buf_start)
             except EOFError:
@@ -48,20 +51,18 @@ class BaseLogReader:
         if hook_id == hooks.WORLD_STARTED:
             # Check settings.ini hash
             expected_settings_hash = binascii.hexlify(self.decoder.readRaw(20)).decode("ascii")
-            settings_hashes = util.get_hashes(self.logdir + "/settings.ini")
+            settings_hashes = util.get_hashes(f"{self.logdir}/settings.ini")
             assert (
                 expected_settings_hash in settings_hashes
-            ), "Bad hash for settings.ini: {} not in {}".format(
-                expected_settings_hash, settings_hashes
-            )
+            ), f"Bad hash for settings.ini: {expected_settings_hash} not in {settings_hashes}"
+
             # Check world.ini hash
             expected_world_hash = binascii.hexlify(self.decoder.readRaw(20)).decode("ascii")
-            world_hashes = util.get_hashes(self.logdir + "/world/world.ini")
+            world_hashes = util.get_hashes(f"{self.logdir}/world/world.ini")
             assert (
                 expected_world_hash in world_hashes
-            ), "Bad hash for world/world.ini: {} not in {}".format(
-                expected_world_hash, world_hashes
-            )
+            ), f"Bad hash for world/world.ini: {expected_world_hash} not in {world_hashes}"
+
 
         elif hook_id == hooks.PLAYER_SPAWNED:
             eid = self.decoder.readLong()
@@ -198,10 +199,10 @@ class BaseLogReader:
 
         else:
             print("Debug:", args)
-            raise NotImplementedError("Not implemented: hook id {}".format(hook_id))
+            raise NotImplementedError(f"Not implemented: hook id {hook_id}")
 
         # Call subclass handler method
         # e.g. for PLAYER_SPAWNED, call self.on_player_spawned
-        func_name = "on_" + util.get_hook_name(hook_id).lower()
+        func_name = f"on_{util.get_hook_name(hook_id).lower()}"
         func = getattr(self, func_name, lambda *args: None)
         func(*args)

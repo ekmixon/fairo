@@ -51,8 +51,7 @@ class NotCondition(Condition):
         self.condition = condition
 
     def check(self):
-        c = not self.condition.check()
-        return c
+        return not self.condition.check()
 
 
 class AndCondition(Condition):
@@ -64,10 +63,7 @@ class AndCondition(Condition):
         self.conditions = conditions
 
     def check(self):
-        for c in self.conditions:
-            if not c.check():
-                return False
-        return True
+        return all(c.check() for c in self.conditions)
 
 
 class OrCondition(Condition):
@@ -79,10 +75,7 @@ class OrCondition(Condition):
         self.conditions = conditions
 
     def check(self):
-        for c in self.conditions:
-            if c.check():
-                return True
-        return False
+        return any(c.check() for c in self.conditions)
 
 
 class TaskStatusCondition(Condition):
@@ -108,7 +101,7 @@ class TaskStatusCondition(Condition):
             if T and T.paused > 0:
                 return True
         else:
-            raise AssertionError("TaskStatusCondition has unkwon status {}".format(self.status))
+            raise AssertionError(f"TaskStatusCondition has unkwon status {self.status}")
         return False
 
 
@@ -116,21 +109,20 @@ class TaskStatusCondition(Condition):
 # 0 is sunrise, .5 is sunset
 def build_special_time_condition(memory, start_time, end_time, epsilon=0.01):
     value_left = TimeValue(memory, mode="world_time")
-    if end_time > 0:
-        start = Comparator(
-            comparison_type="GREATER_THAN_EQUAL", value_left=value_left, value_right=start_time
-        )
-        end = Comparator(
-            comparison_type="LESS_THAN_EQUAL", value_left=value_left, value_right=end_time
-        )
-        return AndCondition(memory, [start, end])
-    else:
+    if end_time <= 0:
         return Comparator(
             comparison_type="CLOSE_TO",
             value_left=value_left,
             value_right=start_time,
             epsilon=epsilon,
         )
+    start = Comparator(
+        comparison_type="GREATER_THAN_EQUAL", value_left=value_left, value_right=start_time
+    )
+    end = Comparator(
+        comparison_type="LESS_THAN_EQUAL", value_left=value_left, value_right=end_time
+    )
+    return AndCondition(memory, [start, end])
 
 
 # TODO make this more ML friendly?
@@ -164,20 +156,17 @@ class TimeCondition(Condition):
             elif comparator == "NIGHT":
                 self.special = build_special_time_condition(memory, 0.5, 1.0)
             else:
-                raise NotImplementedError("unknown special time condition type: " + comparator)
+                raise NotImplementedError(f"unknown special time condition type: {comparator}")
         else:
             if not event:
                 comparator.value_left = TimeValue(memory, mode="elapsed")
             self.comparator = comparator
 
     def check(self):
-        if not self.event:
-            return self.comparator.check()
-        else:
-            if self.event.check():
-                self.comparator.value_left = TimeValue(self.memory, mode="elapsed")
-                self.event = None
-            return self.comparator.check()
+        if self.event and self.event.check():
+            self.comparator.value_left = TimeValue(self.memory, mode="elapsed")
+            self.event = None
+        return self.comparator.check()
 
 
 class Comparator(Condition):
@@ -202,8 +191,7 @@ class Comparator(Condition):
             return False
         if not value_right:
             return False
-        f = COMPARATOR_FUNCTIONS.get(self.comparison_type)
-        if f:
+        if f := COMPARATOR_FUNCTIONS.get(self.comparison_type):
             return f(value_left, value_right, self.epsilon)
         else:
-            raise Exception("unknown comparison type {}".format(self.comparison_type))
+            raise Exception(f"unknown comparison type {self.comparison_type}")

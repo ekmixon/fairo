@@ -1,6 +1,7 @@
 """
 Copyright (c) Facebook, Inc. and its affiliates.
 """
+
 from world import World, SimpleMob, make_mob_opts, Opt
 from utils import Player, Pos, Look, Item
 from fake_agent import FakeAgent
@@ -52,11 +53,11 @@ if __name__ == "__main__":
     #            "dialogue_type": "HUMAN_GIVE_COMMAND",
     #            "action": move_speaker_pos,
     #        }
-    dummy_chat = "TEST {}".format(lf)
+    dummy_chat = f"TEST {lf}"
     agent.set_logical_form(lf, dummy_chat, speaker_name)
 
     agent.recorder = Recorder(agent=agent)
-    for i in range(100):
+    for _ in range(100):
         agent.step()
     FNAME = "test_record.pkl"
     agent.recorder.save_to_file(FNAME)

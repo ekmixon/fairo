@@ -12,10 +12,11 @@ Pyro4.config.SERIALIZERS_ACCEPTED.add("pickle")
 class LoCoBotMover:
     def __init__(self, ip=None):
         # self.bot = Pyro4.Proxy("PYRONAME:remotelocobot@192.168.0.124")
-        if not ip:
-            self.bot = Pyro4.Proxy("PYRONAME:remotelocobot@192.168.1.48")
-        else:
-            self.bot = Pyro4.Proxy("PYRONAME:remotelocobot@" + ip)
+        self.bot = (
+            Pyro4.Proxy(f"PYRONAME:remotelocobot@{ip}")
+            if ip
+            else Pyro4.Proxy("PYRONAME:remotelocobot@192.168.1.48")
+        )
 
     def get_rgb_depth(self):
         print("getting rgb")
@@ -28,11 +29,9 @@ class LoCoBotMover:
 
 
 if __name__ == "__main__":
-    IP = "127.0.0.1"
-    if os.getenv("LOCOBOT_IP"):
-        IP = os.getenv("LOCOBOT_IP")
+    IP = os.getenv("LOCOBOT_IP") or "127.0.0.1"
     lc = LoCoBotMover(ip=IP)
-    for t in range(5):
+    for _ in range(5):
         tm = time.time()
         r, d = lc.get_rgb_depth()
         print(time.time() - tm, "seconds")

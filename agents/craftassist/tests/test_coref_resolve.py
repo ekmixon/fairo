@@ -25,7 +25,7 @@ class CorefResolveTestCase(BaseCraftassistTestCase):
 
         # assert cube was built
         self.assertGreater(len(changes), 0)
-        self.assertEqual(set(changes.values()), set([(41, 0)]))
+        self.assertEqual(set(changes.values()), {(41, 0)})
         cube_xyzs = set(changes.keys())
 
         # destroy it

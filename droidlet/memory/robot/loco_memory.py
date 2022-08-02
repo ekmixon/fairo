@@ -48,10 +48,7 @@ class LocoAgentMemory(AgentMemory):
         # input is a list of player_structs from agent
         for p in player_list:
             mem = self.get_player_by_eid(p.entityId)
-            if mem is None:
-                memid = PlayerNode.create(self, p)
-            else:
-                memid = mem.memid
+            memid = PlayerNode.create(self, p) if mem is None else mem.memid
             PlayerNode.update(self, p, memid)
 
     ######################
@@ -60,7 +57,7 @@ class LocoAgentMemory(AgentMemory):
 
     def get_detected_objects_tagged(self, *tags) -> List["DetectedObjectNode"]:
         memids = set.intersection(*[set(self.get_memids_by_tag(t)) for t in tags])
-        logging.info("get_detected_objects_tagged {}, tags {}".format(memids, tags))
+        logging.info(f"get_detected_objects_tagged {memids}, tags {tags}")
         return memids
 
     ###############

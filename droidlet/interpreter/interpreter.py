@@ -149,13 +149,14 @@ class Interpreter(DialogueObject):
         undo_tasks = [Undo(agent, {"memid": old_task.memid})]
         undo_command = old_task.get_chat().chat_text
 
-        logging.debug("Pushing ConfirmTask tasks={}".format(undo_tasks))
+        logging.debug(f"Pushing ConfirmTask tasks={undo_tasks}")
         # FIXME agent
         self.memory.dialogue_stack_append_new(
             ConfirmTask,
-            'Do you want me to undo the command: "{}" ?'.format(undo_command),
+            f'Do you want me to undo the command: "{undo_command}" ?',
             undo_tasks,
         )
+
         self.finished = True
         return None, None
 
@@ -218,14 +219,13 @@ class Interpreter(DialogueObject):
     # TODO mark in memory it was resumed by command
     def handle_resume(self, agent, speaker, d) -> Tuple[Optional[str], Any]:
         self.finished = True
-        if self.memory.task_stack_resume():
-            if self.archived_loop_data is not None:
-                # TODO if we want to be able stop and resume old tasks, will need to store
-                self.loop_data = self.archived_loop_data
-                self.archived_loop_data = None
-            return None, "resuming", None
-        else:
+        if not self.memory.task_stack_resume():
             return None, "nothing to resume", None
+        if self.archived_loop_data is not None:
+            # TODO if we want to be able stop and resume old tasks, will need to store
+            self.loop_data = self.archived_loop_data
+            self.archived_loop_data = None
+        return None, "resuming", None
 
     def handle_otheraction(self, agent, speaker, d) -> Tuple[Optional[str], Any]:
         self.finished = True

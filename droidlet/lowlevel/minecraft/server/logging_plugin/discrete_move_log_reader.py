@@ -13,10 +13,10 @@ def to_discrete(pos):
 
 class PrintLogReader(BaseLogReader):
     def on_player_spawned(self, tick, buf_start, eid, name, pos, look):
-        print("[{}] Player {} spawned at {}".format(tick, (eid, name), to_discrete(pos)))
+        print(f"[{tick}] Player {(eid, name)} spawned at {to_discrete(pos)}")
 
     def on_player_destroyed(self, tick, buf_start, eid):
-        print("[{}] Player {} destroyed".format(tick, eid))
+        print(f"[{tick}] Player {eid} destroyed")
 
     def on_player_moving(self, tick, buf_start, eid, oldpos, newpos):
         oldpos = to_discrete(oldpos)
@@ -24,21 +24,22 @@ class PrintLogReader(BaseLogReader):
         if oldpos == newpos:
             return
         dx, dy, dz = tuple(n - o for n, o in zip(newpos, oldpos))
-        assert all(p in (-1, 0, 1) for p in (dx, dy, dz)), "Bad (dx, dy, dz) == {}".format(
-            (dx, dy, dz)
-        )
+        assert all(
+            p in (-1, 0, 1) for p in (dx, dy, dz)
+        ), f"Bad (dx, dy, dz) == {(dx, dy, dz)}"
+
         if dx == -1:
-            print("[{}] Player {} STEP_NEG_X".format(tick, eid))
+            print(f"[{tick}] Player {eid} STEP_NEG_X")
         elif dx == 1:
-            print("[{}] Player {} STEP_POS_X".format(tick, eid))
+            print(f"[{tick}] Player {eid} STEP_POS_X")
         if dy == -1:
-            print("[{}] Player {} STEP_NEG_Y".format(tick, eid))
+            print(f"[{tick}] Player {eid} STEP_NEG_Y")
         elif dy == 1:
-            print("[{}] Player {} STEP_POS_Y".format(tick, eid))
+            print(f"[{tick}] Player {eid} STEP_POS_Y")
         if dz == -1:
-            print("[{}] Player {} STEP_NEG_Z".format(tick, eid))
+            print(f"[{tick}] Player {eid} STEP_NEG_Z")
         elif dz == 1:
-            print("[{}] Player {} STEP_POS_Z".format(tick, eid))
+            print(f"[{tick}] Player {eid} STEP_POS_Z")
 
 
 if __name__ == "__main__":

@@ -6,12 +6,11 @@ import copy
 # move location inside reference_object for Fill and Destroy actions
 def fix_fill_and_destroy_location(action_dict):
     action_name = action_dict["action_type"]
-    if action_name in ["FILL", "DESTROY"]:
-        if "location" in action_dict:
-            if "reference_object" not in action_dict:
-                action_dict["reference_object"] = {}
-            action_dict["reference_object"]["location"] = action_dict["location"]
-            action_dict.pop("location")
+    if action_name in ["FILL", "DESTROY"] and "location" in action_dict:
+        if "reference_object" not in action_dict:
+            action_dict["reference_object"] = {}
+        action_dict["reference_object"]["location"] = action_dict["location"]
+        action_dict.pop("location")
     return action_dict
 
 

@@ -15,10 +15,7 @@ class Task(object):
         self.children = []
 
     def featurize(self):
-        if self.featurizer is not None:
-            return self.featurizer(self)
-        else:
-            return "empty"
+        return self.featurizer(self) if self.featurizer is not None else "empty"
 
     def step(self):
         return
@@ -27,10 +24,8 @@ class Task(object):
         self.interrupted = True
 
     def check_finished(self):
-        if self.finished:
-            # TODO this is probably dead, if it isn't kill it:
-            if self.block_memory is not None:  # possibly added by a TaskNode in memory.py
-                self.block_memory.end_time = self.end_time
+        if self.finished and self.block_memory is not None:
+            self.block_memory.end_time = self.end_time
         return self.finished
 
     def __repr__(self):

@@ -45,10 +45,7 @@ def transform(coords, yaw, pitch, inverted=False):
     #  x <----/
     x, y, z = coords
     # a b c is the standard coordinate system
-    if not inverted:
-        trans_mat = np.linalg.inv(rtheta @ rgamma)
-    else:
-        trans_mat = rtheta @ rgamma
+    trans_mat = rtheta @ rgamma if inverted else np.linalg.inv(rtheta @ rgamma)
     a, b, c = trans_mat @ [-z, -x, y]
     # transform back to Minecraft world
     return [-b, c, -a]
@@ -144,8 +141,7 @@ def get_batched_rotation_matrix(look_vec):
     sin_theta = sin_theta.unsqueeze(1)
     rm_pt1 = torch.cat([nly, sin_theta], 1).unsqueeze(1)
     rm_pt2 = torch.cat([-sin_theta, nly], 1).unsqueeze(1)
-    rm = torch.cat([rm_pt1, rm_pt2], 1)
-    return rm
+    return torch.cat([rm_pt1, rm_pt2], 1)
 
 
 def batched_rotate(look_vec, source_vec):
@@ -167,11 +163,14 @@ def batched_rotate(look_vec, source_vec):
     rms = get_batched_rotation_matrix(look_xz)
     # N x 1 x 2 bmm N x 2 x 2 => N x 1 x 2 ==> N x 2
     rotated_source_xz = torch.bmm(source_xz.unsqueeze(1), rms).squeeze(1)
-    # N x 3
-    rotated_source = torch.cat(
-        [rotated_source_xz[:, [0]], source_vec[:, [1]], rotated_source_xz[:, [1]]], dim=1
+    return torch.cat(
+        [
+            rotated_source_xz[:, [0]],
+            source_vec[:, [1]],
+            rotated_source_xz[:, [1]],
+        ],
+        dim=1,
     )
-    return rotated_source
 
 
 if __name__ == "__main__":
@@ -239,12 +238,12 @@ if __name__ == "__main__":
     print(look_vec(*yaw_pitch(np.array((-2, 1, 1)))))
 
     def check():
-        for i in range(20):
+        for _ in range(20):
             y = float(np.random.randint(-180, 180))
             p = float(np.random.randint(-90, 90))
             yn, pn = yaw_pitch(look_vec(y, p))
             assert (y - yn) ** 2 + (p - pn) ** 2 < 0.001
-        for i in range(20):
+        for _ in range(20):
             x = np.random.randn(3)
             xr = np.array(look_vec(*yaw_pitch(x)))
             xn = x / np.linalg.norm(x)

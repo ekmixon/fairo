@@ -73,9 +73,9 @@ class Look(Task):
 
     def __repr__(self):
         if self.target:
-            return "<Look at {} {} {}>".format(self.target[0], self.target[1], self.target[2])
+            return f"<Look at {self.target[0]} {self.target[1]} {self.target[2]}>"
         else:
-            return "<Look at {} {}>".format(self.pitch, self.yaw)
+            return f"<Look at {self.pitch} {self.yaw}>"
 
 
 class Point(Task):
@@ -121,7 +121,7 @@ class Point(Task):
                 self.finished = True
 
     def __repr__(self):
-        return "<Point at {}>".format(self.target)
+        return f"<Point at {self.target}>"
 
 
 class Move(BaseMovementTask):
@@ -152,7 +152,7 @@ class Move(BaseMovementTask):
             self.finished = self.agent.mover.bot_step()
 
     def __repr__(self):
-        return "<Move {}>".format(self.target)
+        return f"<Move {self.target}>"
 
 
 class Turn(Task):
@@ -173,7 +173,7 @@ class Turn(Task):
             self.finished = self.agent.mover.bot_step()
 
     def __repr__(self):
-        return "<Turn {} degrees>".format(self.yaw)
+        return f"<Turn {self.yaw} degrees>"
 
 
 # TODO handle case where agent already has item in inventory (pure give)
@@ -184,13 +184,7 @@ class Get(Task):
         self.get_target = task_data["get_target"]
         self.give_target = task_data["give_target"]
         # steps take values "not_started", "started", "complete"
-        if not self.give_target:
-            # TODO all movements simultaneous- change look while driving
-            # approach_pickup, look_at_object, grab
-            self.steps = ["not_started"] * 3
-        else:
-            # approach_pickup, look_at_object, grab, approach_dropoff, give/drop
-            self.steps = ["not_started"] * 5
+        self.steps = ["not_started"] * 5 if self.give_target else ["not_started"] * 3
         TaskNode(agent.memory, self.memid).update_task(task=self)
 
     def get_mv_target(self, get_or_give="get", end_distance=0.35):
@@ -205,10 +199,7 @@ class Get(Task):
             [tuple]: (x,y,theta) location the agent should move to, in global co-ordinate system
         """
         agent_pos = np.array(self.agent.mover.get_base_pos())[:2]
-        if get_or_give == "get":
-            target_memid = self.get_target
-        else:
-            target_memid = self.give_target
+        target_memid = self.get_target if get_or_give == "get" else self.give_target
         target_pos = self.agent.memory.get_mem_by_id(target_memid).get_pos()
         target_pos = np.array((target_pos[0], target_pos[2]))
         diff = target_pos - agent_pos
@@ -273,7 +264,7 @@ class Get(Task):
             return
 
     def __repr__(self):
-        return "<get {}>".format(self.get_target)
+        return f"<get {self.get_target}>"
 
 
 class AutoGrasp(Task):
@@ -298,9 +289,8 @@ class AutoGrasp(Task):
             # TODO check that the object in the gripper is actually the object we meant to pick up
             # TODO deal with failure cases
             # TODO tag this in the grip task, not here
-            if self.finished:
-                if self.agent.mover.is_object_in_gripper():
-                    self.agent.memory.tag(self.target, "_in_inventory")
+            if self.finished and self.agent.mover.is_object_in_gripper():
+                self.agent.memory.tag(self.target, "_in_inventory")
 
 
 class Drop(Task):

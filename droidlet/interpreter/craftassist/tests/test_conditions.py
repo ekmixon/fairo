@@ -25,7 +25,7 @@ class MoveDirectionUntilTest(BaseCraftassistTestCase):
         z = -5
         cow_move_sequence = [((x, 63, z), cow_look)]
         # speaker_pos = [5, 63, 5]
-        for i in range(20):
+        for _ in range(20):
             while x < 10:
                 x += 1
                 cow_move_sequence.append(((x, 63, z), cow_look))
@@ -70,16 +70,13 @@ class FollowUntilTest(BaseCraftassistTestCase):
         cow_look = (0.0, 0.0)
         cow_move_sequence = [((0, 63, 0), cow_look)]
         x = 0
-        for i in range(20):
+        for _ in range(20):
             while x < 10:
                 x += 1
-                for j in [-2, -3, -2, -3]:
-                    cow_move_sequence.append(((x, 63, j), cow_look))
+                cow_move_sequence.extend(((x, 63, j), cow_look) for j in [-2, -3, -2, -3])
             while x > 1:
                 x -= 1
-                for j in [-2, -3, -2, -3]:
-                    cow_move_sequence.append(((x, 63, j), cow_look))
-
+                cow_move_sequence.extend(((x, 63, j), cow_look) for j in [-2, -3, -2, -3])
         add_sequence_mob(self, "cow", cow_move_sequence)
         cow = self.agent.world.mobs[0]
         self.set_looking_at((1, 63, -2))

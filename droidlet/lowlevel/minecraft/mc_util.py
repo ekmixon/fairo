@@ -122,7 +122,7 @@ def discrete_step_dir(agent):
 
 def fill_idmeta(agent, poss: List[XYZ]) -> List[Block]:
     """Add id_meta information to a a list of (xyz)s"""
-    if len(poss) == 0:
+    if not poss:
         return []
     mx, my, mz = np.min(poss, axis=0)
     Mx, My, Mz = np.max(poss, axis=0)
@@ -142,18 +142,13 @@ def get_locs_from_entity(e):
         if type(e.pos) is list or type(e.pos) is tuple or hasattr(e.pos, "dtype"):
             return (tuple(to_block_pos(e.pos)),)
         else:
-            return tuple((tuple(to_block_pos(pos_to_np(e.pos))),))
+            return (tuple(to_block_pos(pos_to_np(e.pos))), )
 
     if str(type(e)).find("memory") > 0:
-        if hasattr(e, "blocks"):
-            return strip_idmeta(e.blocks)
-        return None
+        return strip_idmeta(e.blocks) if hasattr(e, "blocks") else None
     elif type(e) is tuple or type(e) is list:
         if len(e) > 0:
-            if type(e[0]) is tuple:
-                return e
-            else:
-                return tuple((e,))
+            return e if type(e[0]) is tuple else (e, )
     return None
 
 
@@ -161,13 +156,12 @@ def get_locs_from_entity(e):
 
 def strip_idmeta(blockobj):
     """Return a list of (x, y, z) and drop the id_meta for blockobj"""
-    if blockobj is not None:
-        if type(blockobj) is dict:
-            return list(pos for (pos, id_meta) in blockobj.items())
-        else:
-            return list(pos for (pos, id_meta) in blockobj)
-    else:
+    if blockobj is None:
         return None
+    if type(blockobj) is dict:
+        return [pos for (pos, id_meta) in blockobj.items()]
+    else:
+        return [pos for (pos, id_meta) in blockobj]
 
 
 SPAWN_OBJECTS = {

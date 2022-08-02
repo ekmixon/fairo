@@ -20,7 +20,7 @@ from .filter_helper import interpret_selector
 def get_eid_from_special(agent_memory, S="AGENT", speaker=None):
     """get the entity id corresponding to a special ReferenceObject"""
     eid = None
-    if S == "SPEAKER_LOOK" or S == "SPEAKER":
+    if S in ["SPEAKER_LOOK", "SPEAKER"]:
         if not speaker:
             raise Exception("Asked for speakers memid but did not give speaker name")
         eid = agent_memory.get_player_by_name(speaker).eid
@@ -37,18 +37,17 @@ def special_reference_search_data(interpreter, speaker, S, entity_id=None, agent
         coord_span = S["coordinates_span"]
         loc = cast(XYZ, tuple(int(float(w)) for w in re.findall("[-0-9.]+", coord_span)))
         if len(loc) != 3:
-            logging.error("Bad coordinates: {}".format(coord_span))
+            logging.error(f"Bad coordinates: {coord_span}")
             raise ErrorWithResponse("I don't understand what location you're referring to")
         memid = agent_memory.add_location((int(loc[0]), int(loc[1]), int(loc[2])))
         mem = agent_memory.get_location_by_id(memid)
-        q = "SELECT MEMORY FROM ReferenceObject WHERE uuid={}".format(memid)
+        q = f"SELECT MEMORY FROM ReferenceObject WHERE uuid={memid}"
+    elif S in ["AGENT", "SPEAKER"]:
+        q = f"SELECT MEMORY FROM Player WHERE eid={entity_id}"
+    elif S == "SPEAKER_LOOK":
+        q = f"SELECT MEMORY FROM Attention WHERE type_name={entity_id}"
     else:
-        if S == "AGENT" or S == "SPEAKER":
-            q = "SELECT MEMORY FROM Player WHERE eid={}".format(entity_id)
-        elif S == "SPEAKER_LOOK":
-            q = "SELECT MEMORY FROM Attention WHERE type_name={}".format(entity_id)
-        else:
-            raise Exception("unknown special reference: {}".format(S))
+        raise Exception(f"unknown special reference: {S}")
     return q
 
 
@@ -120,7 +119,8 @@ def interpret_reference_object(
     # filters_d can be empty...
     assert (
         filters_d is not None
-    ) or special, "no filters or special_reference sub-dicts {}".format(d)
+    ) or special, f"no filters or special_reference sub-dicts {d}"
+
     if special:
         mem = get_special_reference_object(interpreter, speaker, special)
         return [mem]
@@ -129,16 +129,15 @@ def interpret_reference_object(
         mem = filters_d["contains_coreference"]
         if isinstance(mem, ReferenceObjectNode):
             return [mem]
-        elif mem == "resolved":
-            pass
-        else:
-            logging.error("bad coref_resolve -> {}".format(mem))
+        elif mem != "resolved":
+            logging.error(f"bad coref_resolve -> {mem}")
 
     if len(interpreter.progeny_data) == 0:
         if any(extra_tags):
-            extra_clauses = []
-            for tag in extra_tags:
-                extra_clauses.append({"pred_text": "has_tag", "obj_text": tag})
+            extra_clauses = [
+                {"pred_text": "has_tag", "obj_text": tag} for tag in extra_tags
+            ]
+
             if not filters_d.get("where_clause"):
                 filters_d["where_clause"] = {"AND": []}
             if filters_d["where_clause"].get("OR") or filters_d["where_clause"].get("NOT"):
@@ -195,8 +194,7 @@ def apply_memory_filters(interpreter, speaker, filters_d) -> List[ReferenceObjec
     """Return a list of (xyz, memory) tuples encompassing all possible reference objects"""
     F = interpreter.subinterpret["filters"](interpreter, speaker, filters_d)
     memids, _ = F()
-    mems = [interpreter.memory.get_mem_by_id(i) for i in memids]
-    return mems
+    return [interpreter.memory.get_mem_by_id(i) for i in memids]
 
 
 # FIXME make me a proper filters object
@@ -209,13 +207,13 @@ def filter_by_sublocation(
     Returns a list of mems
     """
     filters_d = d.get("filters")
-    assert filters_d is not None, "no filters: {}".format(d)
+    assert filters_d is not None, f"no filters: {d}"
     default_loc = getattr(interpreter, "default_loc", SPEAKERLOOK)
 
-    # FIXME! remove this when DSL gets rid of location as selector:
-    get_nearest = False
-    if filters_d.get("location") and not filters_d["location"].get("relative_direction"):
-        get_nearest = True
+    get_nearest = bool(
+        filters_d.get("location")
+        and not filters_d["location"].get("relative_direction")
+    )
 
     location = filters_d.get("location", default_loc)
     reldir = location.get("relative_direction")
@@ -229,15 +227,16 @@ def filter_by_sublocation(
                 ref_mems = interpret_reference_object(
                     interpreter, speaker, location["reference_object"]
                 )
-                # FIXME !!! this should be more clearly delineated
-                # between perception and memory
-                I = getattr(interpreter.memory, "check_inside", None)
-                if I:
-                    for candidate_mem in candidates:
-                        if I([candidate_mem, ref_mems[0]]):
-                            location_filtered_candidates.append(candidate_mem)
-                else:
+                if not (
+                    I := getattr(interpreter.memory, "check_inside", None)
+                ):
                     raise ErrorWithResponse("I don't know how to check inside")
+                location_filtered_candidates.extend(
+                    candidate_mem
+                    for candidate_mem in candidates
+                    if I([candidate_mem, ref_mems[0]])
+                )
+
             if not location_filtered_candidates:
                 raise ErrorWithResponse("I can't find something inside that")
         elif reldir == "AWAY":
@@ -304,20 +303,18 @@ def filter_by_sublocation(
                 return_num = int(number_from_span(return_d["random"]))
             except:
                 raise Exception(
-                    "malformed selector dict {}, tried to get number from return dict".format(
-                        return_d
-                    )
+                    f"malformed selector dict {return_d}, tried to get number from return dict"
                 )
+
             same = selector_d.get("same", "ALLOWED")
             if same == "REQUIRED":
                 mems = [location_filtered_candidates[0]] * return_num
             elif same == "DISALLOWED":
                 if return_num > len(location_filtered_candidates):
                     raise ErrorWithResponse(
-                        "tried to get {} objects when I only can think of {}".format(
-                            return_num, len(location_filtered_candidates)
-                        )
+                        f"tried to get {return_num} objects when I only can think of {len(location_filtered_candidates)}"
                     )
+
                 else:
                     mems = location_filtered_candidates[:return_num]
             else:
@@ -327,14 +324,12 @@ def filter_by_sublocation(
                     location_filtered_candidates[:return_num]
                     + location_filtered_candidates[0] * repeat_num
                 )
-        else:
-            S = interpret_selector(interpreter, speaker, selector_d)
-            if S:
-                memids, _ = S(
-                    [c.memid for c in location_filtered_candidates],
-                    [None] * len(location_filtered_candidates),
-                )
-                mems = [interpreter.memory.get_mem_by_id(m) for m in memids]
+        elif S := interpret_selector(interpreter, speaker, selector_d):
+            memids, _ = S(
+                [c.memid for c in location_filtered_candidates],
+                [None] * len(location_filtered_candidates),
+            )
+            mems = [interpreter.memory.get_mem_by_id(m) for m in memids]
     return mems
 
 
@@ -352,7 +347,7 @@ def object_looked_at(
 
     Returns: a list of (xyz, mem) tuples, max length `limit`
     """
-    if len(candidates) == 0:
+    if not candidates:
         return []
     assert eid or speaker
     if not eid:
@@ -373,15 +368,17 @@ def object_looked_at(
 
     # reject objects behind player or not in cone of sight (but always include
     # an object if it's directly looked at)
-    if not loose:
-        candidates_ = [
+    candidates_ = (
+        candidates
+        if loose
+        else [
             c
             for c in candidates
             if tuple(xsect) in getattr(c, "blocks", {})  # FIXME lopri rename
-            or coord(c) @ FRONT > ((coord(c) @ LEFT) ** 2 + (coord(c) @ UP) ** 2) ** 0.5
+            or coord(c) @ FRONT
+            > ((coord(c) @ LEFT) ** 2 + (coord(c) @ UP) ** 2) ** 0.5
         ]
-    else:
-        candidates_ = candidates
+    )
 
     # if looking directly at an object, sort by proximity to look intersection
     if np.linalg.norm(pos - xsect) <= 25:
@@ -411,7 +408,7 @@ def capped_line_of_sight(memory, speaker=None, eid=None, cap=20):
     xsect_mem = get_special_reference_object(
         None, speaker, "SPEAKER_LOOK", agent_memory=memory, eid=eid
     )
-    _, mems = memory.basic_search("SELECT MEMORY FROM Player WHERE eid={}".format(eid))
+    _, mems = memory.basic_search(f"SELECT MEMORY FROM Player WHERE eid={eid}")
     speaker_mem = mems[0]
     pos = speaker_mem.get_pos()
     if xsect_mem and np.linalg.norm(np.subtract(xsect_mem.get_pos(), pos)) <= cap:

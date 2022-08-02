@@ -150,8 +150,7 @@ class BlockObjectNode(VoxelObjectNode):
         """
         # check if block object already exists in memory
         for xyz, _ in blocks:
-            old_memids = memory.get_block_object_ids_by_xyz(xyz)
-            if old_memids:
+            if old_memids := memory.get_block_object_ids_by_xyz(xyz):
                 return old_memids[0]
         memid = cls.new(memory)
         # TODO check/assert this isn't there...
@@ -167,15 +166,14 @@ class BlockObjectNode(VoxelObjectNode):
         # this is a hack until memory_filters does "not"
         memory.tag(memid, "_not_location")
         logging.debug(
-            "Added block object {} with {} blocks, {}".format(
-                memid, len(blocks), Counter([idm for _, idm in blocks])
-            )
+            f"Added block object {memid} with {len(blocks)} blocks, {Counter([idm for _, idm in blocks])}"
         )
+
 
         return memid
 
     def __repr__(self):
-        return "<BlockObject Node @ {}>".format(list(self.blocks.keys())[0])
+        return f"<BlockObject Node @ {list(self.blocks.keys())[0]}>"
 
 
 # note: instance segmentation objects should not be tagged except by the creator
@@ -233,7 +231,7 @@ class InstSegNode(VoxelObjectNode):
                 for memid in m:
                     inst_memids[memid[0]] = True
         # FIXME just remember the locs in the first pass
-        for m in inst_memids.keys():
+        for m in inst_memids:
             olocs = memory._db_read("SELECT x, y, z from VoxelObjects WHERE uuid=?", m)
             # TODO maybe make an archive?
             if len(set(olocs) - set(locs)) == 0:
@@ -244,8 +242,8 @@ class InstSegNode(VoxelObjectNode):
         # TODO check/assert this isn't there...
         cmd = "INSERT INTO ReferenceObjects (uuid, x, y, z, ref_type) VALUES ( ?, ?, ?, ?, ?)"
         memory.db_write(cmd, memid, loc[0], loc[1], loc[2], "inst_seg")
+        cmd = "INSERT INTO VoxelObjects (uuid, x, y, z, ref_type) VALUES ( ?, ?, ?, ?, ?)"
         for loc in locs:
-            cmd = "INSERT INTO VoxelObjects (uuid, x, y, z, ref_type) VALUES ( ?, ?, ?, ?, ?)"
             memory.db_write(cmd, memid, loc[0], loc[1], loc[2], "inst_seg")
         memory.tag(memid, "VOXEL_OBJECT")
         memory.tag(memid, "_inst_seg")
@@ -266,13 +264,10 @@ class InstSegNode(VoxelObjectNode):
         self.locs = r
         self.blocks = {l: (0, 0) for l in self.locs}
         tags = memory.get_triples(subj=self.memid, pred_text="has_tag")
-        self.tags = []  # noqa: T484
-        for tag in tags:
-            if tag[2][0] != "_":
-                self.tags.append(tag[2])
+        self.tags = [tag[2] for tag in tags if tag[2][0] != "_"]
 
     def __repr__(self):
-        return "<InstSeg Node @ {} with tags {} >".format(self.locs, self.tags)
+        return f"<InstSeg Node @ {self.locs} with tags {self.tags} >"
 
 
 class MobNode(ReferenceObjectNode):
@@ -518,9 +513,7 @@ class SchematicNode(MemoryNode):
     def __init__(self, agent_memory, memid: str):
         super().__init__(agent_memory, memid)
         if memid in agent_memory.schematics.keys():
-            self.blocks = {
-                (x, y, z): (b, m) for ((x, y, z), (b, m)) in agent_memory.schematics[memid]
-            }
+            self.blocks = dict(agent_memory.schematics[memid])
         else:
             r = self.agent_memory._db_read(
                 "SELECT x, y, z, bid, meta FROM Schematics WHERE uuid=?", self.memid

@@ -51,7 +51,7 @@ class GetMemoryHandler(DialogueObject):
         elif memory_type == "REFERENCE_OBJECT":
             return self.handle_reference_object(agent)
         else:
-            raise ValueError("Unknown memory_type={}".format(memory_type))
+            raise ValueError(f"Unknown memory_type={memory_type}")
         self.finished = True
 
     def handle_reference_object(self, agent, voxels_only=False) -> Tuple[Optional[str], Any]:
@@ -79,11 +79,10 @@ class GetMemoryHandler(DialogueObject):
         val_map = get_val_map(self, self.speaker_name, f, get_all=True)
         mems, vals = val_map([m.memid for m in ref_obj_mems], [] * len(ref_obj_mems))
         # back off to tags if nothing else, FIXME do this better!
-        if vals:
-            if vals[0] is None:
-                f["output"] = {"attribute": "tag"}
-                val_map = get_val_map(self, self.speaker_name, f, get_all=True)
-                mems, vals = val_map([m.memid for m in ref_obj_mems], [] * len(ref_obj_mems))
+        if vals and vals[0] is None:
+            f["output"] = {"attribute": "tag"}
+            val_map = get_val_map(self, self.speaker_name, f, get_all=True)
+            mems, vals = val_map([m.memid for m in ref_obj_mems], [] * len(ref_obj_mems))
         return self.do_answer(agent, mems, vals)
 
     def handle_action(self) -> Tuple[Optional[str], Any]:
@@ -119,24 +118,25 @@ class GetMemoryHandler(DialogueObject):
         try:
             if type(output_type) is str and output_type.lower() == "count":
                 # FIXME will multiple count if getting tags
-                if not any(vals):
-                    return "none", None
-                return str(vals[0]), None
+                return (str(vals[0]), None) if any(vals) else ("none", None)
             elif type(output_type) is dict and output_type.get("attribute"):
                 attrib = output_type["attribute"]
-                if type(attrib) is str and attrib.lower() == "location":
-                    # add a Point task if attribute is a location
-                    if self.subinterpret.get("point_target") and self.task_objects.get("point"):
-                        target = self.subinterpret["point_target"].point_to_region(vals[0])
-                        # FIXME agent : This is the only place in file using the agent from the .step()
-                        t = self.task_objects["point"](agent, {"target": target})
-                        # FIXME? higher pri, make sure this runs now...?
-                        TaskNode(self.memory, t.memid)
+                if (
+                    type(attrib) is str
+                    and attrib.lower() == "location"
+                    and self.subinterpret.get("point_target")
+                    and self.task_objects.get("point")
+                ):
+                    target = self.subinterpret["point_target"].point_to_region(vals[0])
+                    # FIXME agent : This is the only place in file using the agent from the .step()
+                    t = self.task_objects["point"](agent, {"target": target})
+                    # FIXME? higher pri, make sure this runs now...?
+                    TaskNode(self.memory, t.memid)
                 return str(vals[0]), None
             elif type(output_type) is str and output_type.lower() == "memory":
                 return self.handle_exists(mems)
             else:
-                raise ValueError("Bad answer_type={}".format(output_type))
+                raise ValueError(f"Bad answer_type={output_type}")
         except IndexError:  # index error indicates no answer available
             logging.error("No answer available from do_answer")
             raise ErrorWithResponse("I don't understand what you're asking")

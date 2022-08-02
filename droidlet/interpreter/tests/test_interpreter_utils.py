@@ -54,8 +54,9 @@ class TestInterpreterUtils(unittest.TestCase):
             original_words = re.split(r" +", k)
             lemmatized_words = original_words
             process_spans_and_remove_fixed_value(
-                processed, original_words, lemmatized_words
-            )  # process spans and fixed_values. Implemented in: interpreter_utils.
+                processed, lemmatized_words, lemmatized_words
+            )
+
             assert compare_full_dictionaries(processed, logical_form_post_processing[k])
 
     def test_location_reference_object(self):

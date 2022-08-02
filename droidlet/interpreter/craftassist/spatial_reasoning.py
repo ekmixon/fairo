@@ -61,11 +61,7 @@ def compute_location_heuristic(player_mem, mems, steps, reldir):
                 raise ErrorWithResponse("I don't know how to go inside there")
             else:
                 loc = locs[0]
-        elif reldir == "NEAR":
-            pass
-        elif reldir == "AROUND":
-            pass
-        else:  # LEFT, RIGHT, etc...
+        elif reldir not in ["NEAR", "AROUND"]:  # LEFT, RIGHT, etc...
             reldir_vec = rotation.DIRECTIONS[reldir]
             # this should be an inverse transform so we set inverted=True
             yaw, _ = player_mem.get_yaw_pitch()
@@ -79,13 +75,10 @@ def compute_location_heuristic(player_mem, mems, steps, reldir):
 def get_repeat_arrangement(
     player_mem, repeat_num, repeat_dir, ref_mems, schematic=None, padding=(1, 1, 1)
 ):
-    shapeparams = {}
     # default repeat dir is LEFT
     if not repeat_dir:
         repeat_dir = "LEFT"
-    # eventually fix this to allow number based on shape
-    shapeparams["N"] = repeat_num
-
+    shapeparams = {"N": repeat_num}
     if repeat_dir == "AROUND":
         # TODO vertical "around"
         shapeparams["orient"] = "xy"

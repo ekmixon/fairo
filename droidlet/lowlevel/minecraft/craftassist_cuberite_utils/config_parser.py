@@ -20,7 +20,7 @@ def read_config(lines):
     """Read the config into a dictionary"""
     d = {}
     current_section = None
-    for i, line in enumerate(lines):
+    for line in lines:
         line = line.strip()
         if len(line) == 0 or line.startswith(";"):
             continue
@@ -29,7 +29,7 @@ def read_config(lines):
             d[current_section] = {}
         else:
             if "=" not in line:
-                raise ValueError("No = in line: {}".format(line))
+                raise ValueError(f"No = in line: {line}")
             key, val = line.split("=", maxsplit=1)
             if key in d[current_section]:
                 old_val = d[current_section][key]
@@ -45,11 +45,11 @@ def read_config(lines):
 def write_config(f, config):
     """Write out config into file f"""
     for section, data in config.items():
-        f.write("[{}]\n".format(section))
+        f.write(f"[{section}]\n")
         for key, val in data.items():
             if type(val) == list:
                 for v in val:
-                    f.write("{}={}\n".format(key, v))
+                    f.write(f"{key}={v}\n")
             else:
-                f.write("{}={}\n".format(key, val))
+                f.write(f"{key}={val}\n")
         f.write("\n")

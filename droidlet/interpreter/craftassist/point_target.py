@@ -21,7 +21,11 @@ class PointTargetInterpreter:
 
     def point_to_region(self, pointed_target):
         # mc pointed target is either a point (x, y, z) or a region represented as (xmin, ymin, zmin, xmax, ymax, zmax)
-        assert len(pointed_target) == 6 or len(pointed_target) == 3, "pointed target should either be (x, y, z) or (xmin, ymin, zmin, xmax, ymax, zmax)"
+        assert len(pointed_target) in {
+            6,
+            3,
+        }, "pointed target should either be (x, y, z) or (xmin, ymin, zmin, xmax, ymax, zmax)"
+
         if len(pointed_target) == 3:
             pointed_target = (pointed_target[0], pointed_target[1], pointed_target[2], pointed_target[0], pointed_target[1], pointed_target[2])
         return pointed_target

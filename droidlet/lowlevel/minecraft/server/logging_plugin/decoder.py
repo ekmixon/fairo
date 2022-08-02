@@ -57,7 +57,7 @@ class Decoder:
     def readString(self):
         length = self.readShort()
         x = self.readRaw(length).decode("utf-8")
-        assert self.readByte() == 0, "String not null-terminated: {}".format(x)
+        assert self.readByte() == 0, f"String not null-terminated: {x}"
         return x
 
     def readIntPos(self):

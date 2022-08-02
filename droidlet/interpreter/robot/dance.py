@@ -62,13 +62,12 @@ def generate_sequential_move_fn(sequence):
     def move_fn(danceObj, agent):
         if danceObj.tick >= len(sequence):
             return None
+        if danceObj.dance_location is not None and danceObj.tick == 0:
+            mv = Move(agent, {"target": danceObj.dance_location, "approx": 0})
+            danceObj.dance_location = None
         else:
-            if danceObj.dance_location is not None and danceObj.tick == 0:
-                mv = Move(agent, {"target": danceObj.dance_location, "approx": 0})
-                danceObj.dance_location = None
-            else:
-                mv = Dance(agent, sequence[danceObj.tick])
-                danceObj.tick += 1
+            mv = Dance(agent, sequence[danceObj.tick])
+            danceObj.tick += 1
         return mv
 
     return move_fn

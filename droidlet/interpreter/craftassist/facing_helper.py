@@ -46,10 +46,12 @@ class FacingInterpreter:
             if "left" in d["relative_yaw"] or "right" in d["relative_yaw"]:
                 left = "left" in d["relative_yaw"] or "leave" in d["relative_yaw"]  # lemmatizer :)
                 degrees = number_from_span(d["relative_yaw"]) or 90
-                if degrees > 0 and left:
-                    return {"relative_yaw": -degrees}
-                else:
-                    return {"relative_yaw": degrees}
+                return (
+                    {"relative_yaw": -degrees}
+                    if degrees > 0 and left
+                    else {"relative_yaw": degrees}
+                )
+
             else:
                 try:
                     degrees = int(number_from_span(d["relative_yaw"]))
@@ -60,10 +62,12 @@ class FacingInterpreter:
             if "down" in d["relative_pitch"] or "up" in d["relative_pitch"]:
                 down = "down" in d["relative_pitch"]
                 degrees = number_from_span(d["relative_pitch"]) or 90
-                if degrees > 0 and down:
-                    return {"relative_pitch": -degrees}
-                else:
-                    return {"relative_pitch": degrees}
+                return (
+                    {"relative_pitch": -degrees}
+                    if degrees > 0 and down
+                    else {"relative_pitch": degrees}
+                )
+
             else:
                 # TODO in the task make this relative!
                 try:

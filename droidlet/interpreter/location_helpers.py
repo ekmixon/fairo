@@ -67,8 +67,7 @@ class ReferenceLocationInterpreter:
 
         # FIXME use FILTERS here!!
         if len(mems) < expected_num:
-            w = refobj.get("filters", {}).get("where_clause")
-            if w:
+            if w := refobj.get("filters", {}).get("where_clause"):
                 tags, _ = backoff_where(w)
                 tags = set(tags)
                 for memtype in interpreter.workspace_memory_prio:

@@ -94,10 +94,7 @@ class Predictors:
                 # Make sure that the input has a minimal
                 # amount of standard deviation from mean. If
                 # not resample
-                if patch_Is[looper].std() > min_patch_std:
-                    isWhiteFlag = 0
-                else:
-                    isWhiteFlag = 1
+                isWhiteFlag = 0 if patch_Is[looper].std() > min_patch_std else 1
             patch_Is_resized[looper] = cv2.resize(
                 patch_Is[looper],
                 (self.grasp_obj.image_size, self.grasp_obj.image_size),

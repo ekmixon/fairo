@@ -23,7 +23,7 @@ class CuberiteBasicTest(unittest.TestCase):
         self.assertIn("cuberite", workdir)
 
     def test_check_cuberite_executable(self):
-        popen = [repo_home + "/server/cuberite/Server/Cuberite"]
+        popen = [f"{repo_home}/server/cuberite/Server/Cuberite"]
         self.assertTrue(path.exists(popen[0]))
 
     def test_launch_cuberite_process(self):

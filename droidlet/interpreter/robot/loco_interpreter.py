@@ -119,9 +119,11 @@ class LocoInterpreter(Interpreter):
             location_d = d.get("location")
             if location_d is not None:
                 rd = location_d.get("relative_direction")
-                if rd is not None and (
-                    rd == "AROUND" or rd == "CLOCKWISE" or rd == "ANTICLOCKWISE"
-                ):
+                if rd is not None and rd in [
+                    "AROUND",
+                    "CLOCKWISE",
+                    "ANTICLOCKWISE",
+                ]:
                     ref_obj = None
                     location_reference_object = location_d.get("reference_object")
                     if location_reference_object:
@@ -161,7 +163,7 @@ class LocoInterpreter(Interpreter):
                     tasks_to_do.append(T(agent, f))
             else:
                 dance_triples = dance_filters_d.get("triples", [])
-                if any([t.get("obj_text") == "wave" for t in dance_triples]):
+                if any(t.get("obj_text") == "wave" for t in dance_triples):
                     new_task = self.task_objects["dance"](agent, {"movement_type": "wave"})
                     tasks_to_do.append(new_task)
                     # FIXME ! merge dances, refactor.  search by name

@@ -39,7 +39,7 @@ class TableColumn(Attribute):
         ]
 
     def __repr__(self):
-        return "Attribute: " + self.attribute
+        return f"Attribute: {self.attribute}"
 
 
 class TripleWalk(Attribute):
@@ -81,7 +81,7 @@ class TripleWalk(Attribute):
         return next_step
 
     def __repr__(self):
-        return "triple path: " + str(self.path)
+        return f"triple path: {str(self.path)}"
 
 
 class AttributeSequence(Attribute):
@@ -95,7 +95,7 @@ class AttributeSequence(Attribute):
         return out
 
     def __repr__(self):
-        return "sequence attribute " + str(self.attributes)
+        return f"sequence attribute {str(self.attributes)}"
 
 
 class ListAttribute(Attribute):
@@ -107,7 +107,7 @@ class ListAttribute(Attribute):
         return list(zip(*[a(mems) for a in self.attributes]))
 
     def __repr__(self):
-        return "List Attribute: " + self.attributes.format()
+        return f"List Attribute: {self.attributes.format()}"
 
 
 class BBoxSize(Attribute):
@@ -146,10 +146,10 @@ class BBoxSize(Attribute):
                 for b in bounds
             ]
         else:
-            raise ValueError("tried to get size attribute {}".format(self.attribute))
+            raise ValueError(f"tried to get size attribute {self.attribute}")
 
     def __repr__(self):
-        return "BBoxSize " + str(self.attribute)
+        return f"BBoxSize {str(self.attribute)}"
 
 
 class LinearExtentAttribute(Attribute):
@@ -227,7 +227,7 @@ class LinearExtentAttribute(Attribute):
         diff = np.subtract(destination, source)
         if self.location_data["relative_direction"] in ["INSIDE", "OUTSIDE"]:
             raise Exception("inside and outside not yet implemented in linear extent")
-        if self.location_data["relative_direction"] in [
+        if self.location_data["relative_direction"] not in [
             "LEFT",
             "RIGHT",
             "UP",
@@ -235,19 +235,19 @@ class LinearExtentAttribute(Attribute):
             "FRONT",
             "BACK",
         ]:
-            reldir_vec = self.coordinate_transforms.DIRECTIONS[
-                self.location_data["relative_direction"]
-            ]
-            # this should be an inverse transform so we set inverted=True
-            dir_vec = self.coordinate_transforms.transform(
-                reldir_vec, self.yaw, self.pitch, inverted=True
-            )
-            if self.normalized:
-                return diff @ dir_vec
-            else:
-                return diff @ dir_vec / np.linalg.norm(diff)
-        else:  # AWAY
             return np.linalg.norm(diff)
+        reldir_vec = self.coordinate_transforms.DIRECTIONS[
+            self.location_data["relative_direction"]
+        ]
+        # this should be an inverse transform so we set inverted=True
+        dir_vec = self.coordinate_transforms.transform(
+            reldir_vec, self.yaw, self.pitch, inverted=True
+        )
+        return (
+            diff @ dir_vec
+            if self.normalized
+            else diff @ dir_vec / np.linalg.norm(diff)
+        )
 
     def __call__(self, mems):
         if not self.mem:
@@ -265,7 +265,7 @@ class LinearExtentAttribute(Attribute):
             return [self.extent(mem.get_pos(), fixed_pos) for mem in mems]
 
     def __repr__(self):
-        return "Attribute: " + str(self.location_data)
+        return f"Attribute: {str(self.location_data)}"
 
 
 class LookRayDistance(Attribute):
@@ -365,11 +365,10 @@ class ComparatorAttribute(Attribute):
         if not value_right:
             return [False] * len(mems)
 
-        f = COMPARATOR_FUNCTIONS.get(self.comparison_type)
-        if f:
+        if f := COMPARATOR_FUNCTIONS.get(self.comparison_type):
             return [f(values_left[i], values_right[i], self.epsilon) for i in range(len(mems))]
         else:
-            raise Exception("unknown comparison type {}".format(self.comparison_type))
+            raise Exception(f"unknown comparison type {self.comparison_type}")
 
 
 COMPARATOR_FUNCTIONS = {

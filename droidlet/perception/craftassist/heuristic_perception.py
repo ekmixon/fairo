@@ -51,12 +51,14 @@ def all_nearby_objects(get_blocks, pos, max_radius=MAX_RADIUS):
     pos = np.round(pos).astype("int32")
     mask, off, blocks = all_close_interesting_blocks(get_blocks, pos, max_radius)
     components = connected_components(mask)
-    logging.debug("all_nearby_objects found {} objects near {}".format(len(components), pos))
-    xyzbms = [
-        [((c[2] + off[2], c[0] + off[0], c[1] + off[1]), tuple(blocks[c])) for c in component_yzxs]
+    logging.debug(f"all_nearby_objects found {len(components)} objects near {pos}")
+    return [
+        [
+            ((c[2] + off[2], c[0] + off[0], c[1] + off[1]), tuple(blocks[c]))
+            for c in component_yzxs
+        ]
         for component_yzxs in components
     ]
-    return xyzbms
 
 
 def closest_nearby_object(get_blocks, pos):
@@ -187,12 +189,11 @@ def check_between(entities, fat_scale=0.2):
     means = []
     for e in entities:
         l = get_locs_from_entity(e)
-        if l is not None:
-            locs.append(l)
-            means.append(np.mean(l, axis=0))
-        else:
+        if l is None:
             # this is not a thing we know how to assign 'between' to
             return False
+        locs.append(l)
+        means.append(np.mean(l, axis=0))
     mean_separation = euclid_dist(means[1], means[2])
     fat = fat_scale * mean_separation
     bounding_locs = []
@@ -254,12 +255,13 @@ def check_inside(entities):
             for j in range(2):
                 fixed = (i + 2 * j - 1) % 3
                 to_check = (i + 1 - 2 * j) % 3
-                colin = [c[to_check] for c in coplanar if c[fixed] == b[fixed]]
-                if len(colin) == 0:
-                    inside = False
-                else:
+                if colin := [
+                    c[to_check] for c in coplanar if c[fixed] == b[fixed]
+                ]:
                     if max(colin) <= b[to_check] or min(colin) >= b[to_check]:
                         inside = False
+                else:
+                    inside = False
             if inside:
                 return True
     return False
@@ -271,10 +273,11 @@ def find_inside(entity):
     and maybe make this not d^3"""
 
     # is this a negative object? if yes, just return its mean:
-    if hasattr(entity, "blocks"):
-        if all(b == (0, 0) for b in entity.blocks.values()):
-            m = np.mean(list(entity.blocks.keys()), axis=0)
-            return [to_block_pos(m)]
+    if hasattr(entity, "blocks") and all(
+        b == (0, 0) for b in entity.blocks.values()
+    ):
+        m = np.mean(list(entity.blocks.keys()), axis=0)
+        return [to_block_pos(m)]
     l = get_locs_from_entity(entity)
     if l is None:
         return []
@@ -284,9 +287,12 @@ def find_inside(entity):
     inside = []
     for x in range(mins[0], maxes[0] + 1):
         for y in range(mins[1], maxes[1] + 1):
-            for z in range(mins[2], maxes[2] + 1):
-                if check_inside([(x, y, z), entity]):
-                    inside.append((x, y, z))
+            inside.extend(
+                (x, y, z)
+                for z in range(mins[2], maxes[2] + 1)
+                if check_inside([(x, y, z), entity])
+            )
+
     return sorted(inside, key=lambda x: euclid_dist(x, m))
 
 
@@ -319,12 +325,11 @@ def label_top_bottom_blocks(block_list, top_heuristic=15, bottom_heuristic=25):
     cnt_bottom = math.ceil((bottom_heuristic / 100) * num_blocks)
     cnt_remaining = num_blocks - (cnt_top + cnt_bottom)
 
-    dict_top_bottom = {}
-    dict_top_bottom["top"] = block_list[:cnt_top]
-    dict_top_bottom["bottom"] = block_list[-cnt_bottom:]
-    dict_top_bottom["neither"] = block_list[cnt_top : cnt_top + cnt_remaining]
-
-    return dict_top_bottom
+    return {
+        "top": block_list[:cnt_top],
+        "bottom": block_list[-cnt_bottom:],
+        "neither": block_list[cnt_top : cnt_top + cnt_remaining],
+    }
 
 
 def ground_height(agent, pos, radius, yfilt=5, xzfilt=5):
@@ -377,29 +382,29 @@ def get_nearby_airtouching_blocks(
                     off = [0, 0, 0]
                     off[coord] = d
                     l = (loc[0] + off[0], loc[1] + off[1], loc[2] + off[2])
-                    if l[coord] >= 0 and l[coord] < xyzb.shape[coord]:
-                        if xyzb[l[0], l[1], l[2], 0] == 0:
-                            try:
-                                blocktypes.append(idm)
-                                type_name = block_data["bid_to_name"][idm]
-                                tags = [type_name]
-                                colours = deepcopy(color_data["name_to_colors"].get(type_name, []))
-                                colours.extend([c for c in COLOUR_LIST if c in type_name])
-                                if colours:
-                                    tags.extend(colours)
-                                    tags.extend([{"has_colour": c} for c in colours])
-                                tags.extend(
-                                    block_property_data["name_to_properties"].get(type_name, [])
-                                )
-                            except:
-                                logging.debug(
-                                    "I see a weird block, ignoring: ({}, {})".format(
-                                        idm[0], idm[1]
-                                    )
-                                )
+                    if (
+                        l[coord] >= 0
+                        and l[coord] < xyzb.shape[coord]
+                        and xyzb[l[0], l[1], l[2], 0] == 0
+                    ):
+                        try:
+                            blocktypes.append(idm)
+                            type_name = block_data["bid_to_name"][idm]
+                            tags = [type_name]
+                            colours = deepcopy(color_data["name_to_colors"].get(type_name, []))
+                            colours.extend([c for c in COLOUR_LIST if c in type_name])
+                            if colours:
+                                tags.extend(colours)
+                                tags.extend([{"has_colour": c} for c in colours])
+                            tags.extend(
+                                block_property_data["name_to_properties"].get(type_name, [])
+                            )
+                        except:
+                            logging.debug(f"I see a weird block, ignoring: ({idm[0]}, {idm[1]})")
         if tags:
-            shifted_c = [(l[0] + x - radius, l[1] + ymin, l[2] + z - radius) for l in c]
-            if len(shifted_c) > 0:
+            if shifted_c := [
+                (l[0] + x - radius, l[1] + ymin, l[2] + z - radius) for l in c
+            ]:
                 InstSegNode.create(agent.memory, shifted_c, tags=tags)
     return blocktypes
 
@@ -465,7 +470,7 @@ def get_all_nearby_holes(agent, location, block_data, radius=15, store_inst_seg=
             height_map[i][j], idm_map[i][j] = get_block_info(i - radius + sx, j - radius + sz)
             heapq.heappush(blocks_queue, (height_map[i][j] + 1, (i, height_map[i][j] + 1, j)))
     holes = []
-    while len(blocks_queue) > 0:
+    while blocks_queue:
         hxyz = heapq.heappop(blocks_queue)
         h, (x, y, z) = hxyz  # NB: relative positions
         if (x, y, z) in visited or y > max_height:
@@ -525,8 +530,9 @@ def maybe_get_type_name(idm, block_data):
     except:
         type_name = "UNK"
         logging.debug(
-            "heuristic perception encountered unknown block: ({}, {})".format(idm[0], idm[1])
+            f"heuristic perception encountered unknown block: ({idm[0]}, {idm[1]})"
         )
+
     return type_name
 
 

@@ -151,14 +151,14 @@ class SchematicPlotter:
                 for j in range(schematic.shape[1]):
                     for k in range(schematic.shape[2]):
                         if schematic[i, j, k, 0] > 0:
-                            c = self.bid_to_color.get(tuple(schematic[i, j, k, :]))
-                            if c:
+                            if c := self.bid_to_color.get(
+                                tuple(schematic[i, j, k, :])
+                            ):
                                 plotCubeAt(pos=(i, k, j), color=c, ax=ax)  # x, z, y
         else:
             for b in schematic:
                 if b[1][0] > 0:
-                    c = self.bid_to_color.get(b[1])
-                    if c:
+                    if c := self.bid_to_color.get(b[1]):
                         plotCubeAt(pos=(b[0][0], b[0][2], b[0][1]), color=c, ax=ax)  # x, z, y
         plt.title(title)
         visrotate(n, ax, self.viz)
@@ -186,8 +186,9 @@ class SchematicPlotter:
                 for j in range(schematic.shape[1]):
                     for k in range(schematic.shape[2]):
                         if schematic[i, j, k, 0] > 0:
-                            c = self.bid_to_color.get(tuple(schematic[i, j, k, :]))
-                            if c:
+                            if c := self.bid_to_color.get(
+                                tuple(schematic[i, j, k, :])
+                            ):
                                 x.append(i)
                                 y.append(j)
                                 z.append(k)
@@ -196,8 +197,7 @@ class SchematicPlotter:
         else:
             for b in schematic:
                 if b[1][0] > 0:
-                    c = self.bid_to_color.get(b[1])
-                    if c:
+                    if c := self.bid_to_color.get(b[1]):
                         x.append(b[0][0])
                         y.append(b[0][2])
                         z.append(b[0][1])
@@ -206,7 +206,7 @@ class SchematicPlotter:
         #                        clrs.append(self.bid_to_index[b[1]])
         if ptype == "scatter":
             X = torch.Tensor([x, y, z]).t()
-            if len(clrs) == 0:
+            if not clrs:
                 raise Exception("all 0 input?")
             colors = (256 * torch.Tensor(clrs)[:, 0:3]).long().numpy()
             w = self.viz.scatter(
@@ -228,14 +228,11 @@ class SchematicPlotter:
             cmap = [
                 [
                     c / maxid,
-                    "rgb({},{},{})".format(
-                        self.index_to_color[c][0],
-                        self.index_to_color[c][1],
-                        self.index_to_color[c][0],
-                    ),
+                    f"rgb({self.index_to_color[c][0]},{self.index_to_color[c][1]},{self.index_to_color[c][0]})",
                 ]
                 for c in clr_set
             ]
+
             trace1 = go.Volume(
                 x=np.asarray(x).transpose(),
                 y=np.asarray(y).transpose(),
@@ -306,7 +303,7 @@ if __name__ == "__main__":
             for i in range(num_neg):
                 sp.drawPlotly(curr_data[i + 1])
     else:
-        raise Exception("Unknown dataset: {}".format(opts.dataset))
+        raise Exception(f"Unknown dataset: {opts.dataset}")
 
 
 """            

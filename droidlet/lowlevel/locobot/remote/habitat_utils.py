@@ -20,7 +20,7 @@ def reconfigure_scene(env, scene_path):
     # these are useful to know to understand co-ordinate normalization
     # and where to place objects to be within bounds. They change wildly
     # from scene to scene
-    print("scene bounds: {}".format(sim.pathfinder.get_bounds()))
+    print(f"scene bounds: {sim.pathfinder.get_bounds()}")
 
     agent = sim.get_agent(0)
 
@@ -43,7 +43,10 @@ def reconfigure_scene(env, scene_path):
 
     supported_scenes = ["skokloster-castle", "van-gogh-room", "apartment_0"]
     if scene_name not in supported_scenes:
-        print("Scene {} not in supported scenes, so skipping adding objects".format(scene_name))
+        print(
+            f"Scene {scene_name} not in supported scenes, so skipping adding objects"
+        )
+
         return
 
     assets_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../tests/test_assets"))
@@ -58,7 +61,7 @@ def reconfigure_scene(env, scene_path):
     if scene_name == "apartment_0":
         id_male = sim.add_object(human_male_template_id)
         id_female = sim.add_object(human_female_template_id)
-        print("id_male, id_female: {} {}".format(id_male, id_female))
+        print(f"id_male, id_female: {id_male} {id_female}")
 
         sim.set_translation([1.2, -0.81, 0.3], id_female)  # apartment_0, female
         sim.set_translation([1.2, -0.75, -0.3], id_male)  # apartment_0, male
@@ -68,11 +71,11 @@ def reconfigure_scene(env, scene_path):
         sim.set_rotation(rot, id_female)  # apartment_0
     elif scene_name == "skokloster-castle":
         id_female = sim.add_object(human_female_template_id)
-        print("id_female: {}".format(id_female))
+        print(f"id_female: {id_female}")
         sim.set_translation([2.0, 3.0, 15.00], id_female)  # skokloster castle
     elif scene_name == "van-gogh-room":
         id_female = sim.add_object(human_female_template_id)
-        print("id_female: {}".format(id_female))
+        print(f"id_female: {id_female}")
         sim.set_translation([1.0, 0.84, 0.00], id_female)  # van-gogh-room
 
     # make the objects STATIC so that collisions work

@@ -66,9 +66,9 @@ class MemoryNode:
 
         read_cmd = "SELECT "
         for r in self.TABLE_COLUMNS:
-            read_cmd += r + ", "
+            read_cmd += f"{r}, "
         read_cmd = read_cmd.strip(", ")
-        read_cmd += " FROM " + self.TABLE + " WHERE uuid=?"
+        read_cmd += f" FROM {self.TABLE} WHERE uuid=?"
         data = agent_memory._db_read_one(read_cmd, self.memid)
         if not data:
             raise ("tried to snapshot nonexistent memory")
@@ -81,10 +81,10 @@ class MemoryNode:
             archive_table = self.ARCHIVE_TABLE
         else:
             archive_table = self.TABLE
-        write_cmd = "INSERT INTO " + archive_table + "("
+        write_cmd = f"INSERT INTO {archive_table}("
         qs = ""
         for r in self.TABLE_COLUMNS:
-            write_cmd += r + ", "
+            write_cmd += f"{r}, "
             qs += "?, "
         write_cmd = write_cmd.strip(", ")
         write_cmd += ") VALUES (" + qs.strip(", ") + ")"
@@ -452,8 +452,11 @@ class PlayerNode(ReferenceObjectNode):
 
     @classmethod
     def update(cls, memory, p, memid) -> str:
-        cmd = "UPDATE ReferenceObjects SET eid=?, name=?, x=?,  y=?, z=?, pitch=?, yaw=? WHERE "
-        cmd = cmd + "uuid=?"
+        cmd = (
+            "UPDATE ReferenceObjects SET eid=?, name=?, x=?,  y=?, z=?, pitch=?, yaw=? WHERE "
+            + "uuid=?"
+        )
+
         memory.db_write(
             cmd, p.entityId, p.name, p.pos.x, p.pos.y, p.pos.z, p.look.pitch, p.look.yaw, memid
         )
@@ -821,8 +824,7 @@ class TaskNode(MemoryNode):
             >>> task = Task()
             >>> create(memory, task)
         """
-        old_memid = getattr(task, "memid", None)
-        if old_memid:
+        if old_memid := getattr(task, "memid", None):
             return old_memid
         memid = cls.new(memory)
         task.memid = memid  # FIXME: this shouldn't be necessary, merge Task and TaskNode?
@@ -894,13 +896,9 @@ class TaskNode(MemoryNode):
                 setattr(self.task, k, s)
             status_out[k] = getattr(self.task, k)
             if k == "finished":
-                if self.task.finished:
-                    status_out[k] = self.agent_memory.get_time()
-                else:
-                    status_out[k] = -1
-
+                status_out[k] = self.agent_memory.get_time() if self.task.finished else -1
             if status.get(k) or force_db_update:
-                cmd = "UPDATE Tasks SET " + k + "=? WHERE uuid=?"
+                cmd = f"UPDATE Tasks SET {k}=? WHERE uuid=?"
                 self.agent_memory.db_write(cmd, status_out[k], self.memid)
         return status_out
 
@@ -930,8 +928,9 @@ class TaskNode(MemoryNode):
 
     def get_chat(self) -> Optional[ChatNode]:
         """Return the memory of the chat that caused this task's creation, or None"""
-        triples = self.agent_memory.get_triples(pred_text="chat_effect_", obj=self.memid)
-        if triples:
+        if triples := self.agent_memory.get_triples(
+            pred_text="chat_effect_", obj=self.memid
+        ):
             chat_id, _, _ = triples[0]
             return ChatNode(self.agent_memory, chat_id)
         else:
@@ -946,7 +945,7 @@ class TaskNode(MemoryNode):
             _, _, parent_memid = triples[0]
             return TaskNode(self.agent_memory, parent_memid)
         else:
-            raise AssertionError("Task {} has multiple parents: {}".format(self.memid, triples))
+            raise AssertionError(f"Task {self.memid} has multiple parents: {triples}")
 
     def get_root_task(self) -> Optional["TaskNode"]:
         mem = self
@@ -979,7 +978,7 @@ class TaskNode(MemoryNode):
         return sorted(descendents, key=lambda t: t.finished)
 
     def __repr__(self):
-        return "<TaskNode: {}>".format(self.task)
+        return f"<TaskNode: {self.task}>"
 
 
 # list of nodes to register in memory

@@ -22,7 +22,7 @@ from detectron2.evaluation import COCOEvaluator, inference_on_dataset
 
 from droidlet.perception.robot import LabelPropagate
 
-def label_propagation(postData): 
+def label_propagation(postData):
     """
     postData: 
         prevRgbImg: source rgb image
@@ -48,7 +48,7 @@ def label_propagation(postData):
 
     # Convert depth map to meters
     depth_imgs = []
-    for i, depth in enumerate([postData["prevDepth"], postData["depth"]]): 
+    for depth in [postData["prevDepth"], postData["depth"]]:
         depth_encoded = depth["depthImg"]
         depth_bytes = base64.b64decode(depth_encoded)
         depth_np = np.frombuffer(depth_bytes, dtype=np.uint8)
@@ -71,11 +71,8 @@ def label_propagation(postData):
     LP = LabelPropagate()
     res_labels = LP(src_img, src_depth, src_label, src_pose, cur_pose, cur_depth)
 
-    # Convert mask maps to mask points
-    objects = labels_to_objects(res_labels, postData["objects"])
-
     # Returns an array of objects with updated masks
-    return objects
+    return labels_to_objects(res_labels, postData["objects"])
 
 # LP helper: Convert mask points to mask maps then combine them
 def mask_to_map(objects, height, width): 
@@ -217,7 +214,7 @@ def save_annotations(categories):
         json.dump(coco_output, output_json)
         print("Saved annotations to", coco_file_name)
 
-def save_categories_properties(categories, properties): 
+def save_categories_properties(categories, properties):
     """
     categories: array starting with null of categories saved in dashboard
     properties: array of properties used to describe objects
@@ -235,7 +232,7 @@ def save_categories_properties(categories, properties):
     model_nums = list(map(lambda x: int(x.split("v")[1]), model_dirs))
     cur_model_num = max(model_nums) + 1
     # Create new folder for model/v(x+1)
-    model_dir = os.path.join(models_dir, "v" + str(cur_model_num))
+    model_dir = os.path.join(models_dir, f"v{str(cur_model_num)}")
     Path(model_dir).mkdir(parents=True, exist_ok=True)
 
     # Get categories and properties
@@ -258,7 +255,7 @@ def save_categories_properties(categories, properties):
         json.dump(props_json, file)
         print("saved properties to", props_path)
 
-def retrain_detector(settings): 
+def retrain_detector(settings):
     """
     settings: properties to be used in the retraining process
 
@@ -285,7 +282,7 @@ def retrain_detector(settings):
     # 1) Split coco json file into train and test using cocosplit code
     # Adapted from https://github.com/akarazniewicz/cocosplit/blob/master/cocosplit.py
     with open(annotation_path, "rt", encoding="UTF-8") as annotations_file: 
-        
+
         # Extract info from json
         coco = json.load(annotations_file)
         info = coco["info"]
@@ -320,9 +317,9 @@ def retrain_detector(settings):
 
     # 2) Use train/test files to retrain detector
     dataset_name = "annotation_coco"
-    image_dir = base_path + "rgb/"
-    train_data = dataset_name + "_train"
-    test_data = dataset_name + "_test"
+    image_dir = f"{base_path}rgb/"
+    train_data = f"{dataset_name}_train"
+    test_data = f"{dataset_name}_test"
 
     DatasetCatalog.clear()
     MetadataCatalog.clear()
@@ -344,7 +341,7 @@ def retrain_detector(settings):
     cfg.SOLVER.IMS_PER_BATCH = 2
     cfg.SOLVER.BASE_LR = settings["learningRate"] # Make sure LR is good
     cfg.SOLVER.MAX_ITER = settings["maxIters"] # 300 is good for small datasets
-    
+
     # Train
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
     trainer = DefaultTrainer(cfg)
@@ -357,9 +354,9 @@ def retrain_detector(settings):
     # Get highest x for model/vx
     model_dirs = list(filter(lambda n: os.path.isdir(os.path.join(model_dir, n)), model_names))
     model_nums = list(map(lambda x: int(x.split("v")[1]), model_dirs))
-    last_model_num = max(model_nums) 
+    last_model_num = max(model_nums)
     # Add model to new folder
-    model_path = os.path.join(model_dir, "v" + str(last_model_num))
+    model_path = os.path.join(model_dir, f"v{str(last_model_num)}")
     new_model_path = os.path.join(model_path, "model_999.pth")
     old_model_path = os.path.join(output_path, "model_final.pth")
     os.replace(old_model_path, new_model_path)
@@ -368,13 +365,13 @@ def retrain_detector(settings):
     evaluator = COCOEvaluator(test_data, ("bbox", "segm"), False, output_dir="../../annotation_data/output/")
     val_loader = build_detection_test_loader(cfg, test_data)
     inference = inference_on_dataset(trainer.model, val_loader, evaluator)
-    
+
     # inference keys: bbox, semg
     # bbox and segm keys: AP, AP50, AP75, APs, APm, AP1, AP-category1, ...
     inference_json = json.loads(json.dumps(inference).replace("NaN", "null"))
     return inference_json
 
-def get_offline_frame(data): 
+def get_offline_frame(data):
     """
     data: 
         filepath: where to access rgb data on disk
@@ -389,8 +386,8 @@ def get_offline_frame(data):
 
     num_zeros = 5 - len(str(data["frameId"]))
     file_num = "".join(["0" for _ in range(num_zeros)]) + str(data["frameId"])
-    rgb_filename = os.path.join(rgb_path, file_num + ".jpg")
-    depth_filename = os.path.join(depth_path, file_num + ".npy")
+    rgb_filename = os.path.join(rgb_path, f"{file_num}.jpg")
+    depth_filename = os.path.join(depth_path, f"{file_num}.npy")
 
     rgb = cv2.imread(rgb_filename)
     depth = np.load(depth_filename)

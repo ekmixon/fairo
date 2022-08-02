@@ -37,13 +37,13 @@ def render_video(ob_dir, outfile, dpi=100, max_depth=48):
             depth[depth > max_depth] = max_depth
             plt.subplot(1, 2, 2)
             plt.imshow(depth, cmap="Blues_r", animated=True)
-            plt.title("tick={}".format(i))
+            plt.title(f"tick={i}")
 
             writer.grab_frame()
 
             i += 1
             avg_fps = i / (time.time() - t_start)
-            print("Wrote tick={}, avg_fps={}".format(i, avg_fps))
+            print(f"Wrote tick={i}, avg_fps={avg_fps}")
 
 
 if __name__ == "__main__":

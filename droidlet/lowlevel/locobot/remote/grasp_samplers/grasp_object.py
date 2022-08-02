@@ -53,7 +53,7 @@ class GraspTorchObj(object):
         if isinstance(module, torch.nn.BatchNorm2d):
             module.track_running_stats = 1
         else:
-            for i, (name, module1) in enumerate(module._modules.items()):
+            for name, module1 in module._modules.items():
                 module1 = self.recursion_change_bn(module1)
         return module
 
@@ -118,8 +118,7 @@ class GraspTorchObj(object):
             if self.transform:
                 pil_im = self.transform(pil_im)
             im_list.append(pil_im)
-        im_stacked = torch.stack(im_list)
-        return im_stacked
+        return torch.stack(im_list)
 
     def convert_hw(self, h):
         """Converts a list of floats to a torch Tensor.
@@ -146,8 +145,7 @@ class GraspTorchObj(object):
         labels_tensor = Variable(torch.LongTensor(labels))
         y_onehot = Variable(torch.DoubleTensor(batch_size, n_class))
         y_onehot.zero_()
-        labels_onehot = y_onehot.scatter_(1, labels_tensor.view(-1, 1), 1)
-        return labels_onehot
+        return y_onehot.scatter_(1, labels_tensor.view(-1, 1), 1)
 
     def convert_robot_one_hot(self, labels):
         """Converts a list of robot_id labels to a Torch tensor of one_hot
@@ -163,8 +161,7 @@ class GraspTorchObj(object):
         labels_tensor = Variable(torch.LongTensor(labels))
         y_onehot = Variable(torch.DoubleTensor(batch_size, n_rob))
         y_onehot.zero_()
-        labels_onehot = y_onehot.scatter_(1, labels_tensor.view(-1, 1), 1)
-        return labels_onehot
+        return y_onehot.scatter_(1, labels_tensor.view(-1, 1), 1)
 
     def get_default_transform(self):
         """Return the default transform to be applied on the images. This
@@ -174,11 +171,10 @@ class GraspTorchObj(object):
         :returns: An image transform
         :rtype: a torchvision.Transform object
         """
-        image_transforms = transforms.Compose(
+        return transforms.Compose(
             [
                 transforms.Resize((self.image_size, self.image_size)),
                 transforms.ToTensor(),
                 transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
             ]
         )
-        return image_transforms

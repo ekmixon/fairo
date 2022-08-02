@@ -126,7 +126,7 @@ class MCInterpreter(Interpreter):
             )
         tasks = []
         for obj in objs:
-            if m_d["modify_type"] == "THINNER" or m_d["modify_type"] == "THICKER":
+            if m_d["modify_type"] in ["THINNER", "THICKER"]:
                 destroy_task_data, build_task_data = handle_thicken(self, speaker, m_d, obj)
             elif m_d["modify_type"] == "REPLACE":
                 destroy_task_data, build_task_data = handle_replace(
@@ -141,7 +141,7 @@ class MCInterpreter(Interpreter):
                 destroy_task_data, build_task_data = handle_scale(self, speaker, m_d, obj)
             elif m_d["modify_type"] == "RIGIDMOTION":
                 destroy_task_data, build_task_data = handle_rigidmotion(self, speaker, m_d, obj)
-            elif m_d["modify_type"] == "FILL" or m_d["modify_type"] == "HOLLOW":
+            elif m_d["modify_type"] in ["FILL", "HOLLOW"]:
                 destroy_task_data, build_task_data = handle_fill(
                     self,
                     speaker,
@@ -259,7 +259,7 @@ class MCInterpreter(Interpreter):
         for td in tasks_data:
             t = self.task_objects["build"](agent, td)
             tasks.append(t)
-        logging.info("Adding {} Build tasks to stack".format(len(tasks)))
+        logging.info(f"Adding {len(tasks)} Build tasks to stack")
         return maybe_task_list_to_control_block(tasks, agent), None, None
 
     def handle_fill(self, agent, speaker, d) -> Tuple[Any, Optional[str], Any]:
@@ -365,7 +365,7 @@ class MCInterpreter(Interpreter):
                 schematic = list(obj.blocks.items())
                 task_data = {"schematic": schematic, "action_dict": d}
                 tasks.append(self.task_objects["destroy"](agent, task_data))
-        logging.info("Added {} Destroy tasks to stack".format(len(tasks)))
+        logging.info(f"Added {len(tasks)} Destroy tasks to stack")
         return maybe_task_list_to_control_block(tasks, agent), None, None
 
     def handle_dig(self, agent, speaker, d) -> Tuple[Any, Optional[str], Any]:
@@ -449,9 +449,11 @@ class MCInterpreter(Interpreter):
             location_d = d.get("location")
             if location_d is not None:
                 rd = location_d.get("relative_direction")
-                if rd is not None and (
-                    rd == "AROUND" or rd == "CLOCKWISE" or rd == "ANTICLOCKWISE"
-                ):
+                if rd is not None and rd in [
+                    "AROUND",
+                    "CLOCKWISE",
+                    "ANTICLOCKWISE",
+                ]:
                     ref_obj = None
                     location_reference_object = location_d.get("reference_object")
                     if location_reference_object:

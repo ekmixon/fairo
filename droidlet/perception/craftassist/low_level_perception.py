@@ -68,8 +68,7 @@ class LowLevelMCPerception:
                     < self.memory.perception_range
                 ):
                     self.memory.set_item_stack_position(item_stack)
-            old_item_stacks = self.memory.get_all_item_stacks()
-            if old_item_stacks:
+            if old_item_stacks := self.memory.get_all_item_stacks():
                 for old_item_stack in old_item_stacks:
                     memid = old_item_stack[0]
                     eid = old_item_stack[1]
@@ -90,8 +89,11 @@ class LowLevelMCPerception:
         """Update agent's current position and attributes in memory"""
         p = self.agent.get_player()
         memid = self.memory.get_player_by_eid(p.entityId).memid
-        cmd = "UPDATE ReferenceObjects SET eid=?, name=?, x=?,  y=?, z=?, pitch=?, yaw=? WHERE "
-        cmd = cmd + "uuid=?"
+        cmd = (
+            "UPDATE ReferenceObjects SET eid=?, name=?, x=?,  y=?, z=?, pitch=?, yaw=? WHERE "
+            + "uuid=?"
+        )
+
         self.memory.db_write(
             cmd, p.entityId, p.name, p.pos.x, p.pos.y, p.pos.z, p.look.pitch, p.look.yaw, memid
         )
@@ -103,24 +105,21 @@ class LowLevelMCPerception:
         """
         for p in player_list:
             mem = self.memory.get_player_by_eid(p.entityId)
-            if mem is None:
-                memid = PlayerNode.create(self.memory, p)
-            else:
-                memid = mem.memid
+            memid = PlayerNode.create(self.memory, p) if mem is None else mem.memid
             cmd = (
                 "UPDATE ReferenceObjects SET eid=?, name=?, x=?,  y=?, z=?, pitch=?, yaw=? WHERE "
+                + "uuid=?"
             )
-            cmd = cmd + "uuid=?"
+
             self.memory.db_write(
                 cmd, p.entityId, p.name, p.pos.x, p.pos.y, p.pos.z, p.look.pitch, p.look.yaw, memid
             )
             loc = capped_line_of_sight(self.agent, p)
             loc[1] += 1
-            memids = self.memory._db_read_one(
+            if memids := self.memory._db_read_one(
                 'SELECT uuid FROM ReferenceObjects WHERE ref_type="attention" AND type_name=?',
                 p.entityId,
-            )
-            if memids:
+            ):
                 self.memory.db_write(
                     "UPDATE ReferenceObjects SET x=?, y=?, z=? WHERE uuid=?",
                     loc[0],
@@ -137,10 +136,9 @@ class LowLevelMCPerception:
         Returns:
             a raw player struct, e.g. to use in agent.get_player_line_of_sight
         """
-        for p in self.agent.get_other_players():
-            if p.name == name:
-                return p
-        return None
+        return next(
+            (p for p in self.agent.get_other_players() if p.name == name), None
+        )
 
     def on_block_changed(self, xyz: XYZ, idm: IDM):
         """Update the state of the world when a block is changed."""
@@ -154,10 +152,7 @@ class LowLevelMCPerception:
 
     def maybe_remove_inst_seg(self, xyz):
         """if the block is changed, the old instance segmentation is considered no longer valid"""
-        # get all associated instseg nodes
-        # FIXME make this into a basic search
-        inst_seg_memids = self.memory.get_instseg_object_ids_by_xyz(xyz)
-        if inst_seg_memids:
+        if inst_seg_memids := self.memory.get_instseg_object_ids_by_xyz(xyz):
             # delete the InstSeg, they are ephemeral and should be recomputed
             # TODO/FIXME  more refined approach: if a block changes
             # ask the models to recompute.  if the tags are the same, keep it
@@ -198,7 +193,7 @@ class LowLevelMCPerception:
             # normal block added
             adjacent_memids = [a[0][0] for a in adjacent if len(a) > 0 and a[0][1] > 0]
         adjacent_memids = list(set(adjacent_memids))
-        if len(adjacent_memids) == 0:
+        if not adjacent_memids:
             # new block object
             BlockObjectNode.create(self.agent.memory, [(xyz, idm)])
         elif len(adjacent_memids) == 1:
@@ -217,8 +212,11 @@ class LowLevelMCPerception:
             # merge tags
             where = " OR ".join(["subj=?"] * len(adjacent_memids))
             self.memory.db_write(
-                "UPDATE Triples SET subj=? WHERE " + where, chosen_memid, *adjacent_memids
+                f"UPDATE Triples SET subj=? WHERE {where}",
+                chosen_memid,
+                *adjacent_memids,
             )
+
 
             # merge multiple block objects (will delete old ones)
             where = " OR ".join(["uuid=?"] * len(adjacent_memids))

@@ -88,7 +88,7 @@ class CraftAssistSwarmMaster(CraftAssistAgent):
         try:
             self.num_agents = opts.num_agents
         except:
-            logging.info("Default swarm with {} agents.".format(self.default_num_agents))
+            logging.info(f"Default swarm with {self.default_num_agents} agents.")
             self.num_agents = self.default_num_agents
         self.swarm_workers = [CraftAssistSwarmWorker_Wrapper(opts, idx=i) for i in range(1, self.num_agents)]
 
@@ -96,11 +96,13 @@ class CraftAssistSwarmMaster(CraftAssistAgent):
     
     def init_controller(self):
         """Initialize all controllers"""
-        dialogue_object_classes = {}
-        dialogue_object_classes["bot_capabilities"] = MCBotCapabilities
-        dialogue_object_classes["interpreter"] = SwarmMCInterpreter
-        dialogue_object_classes["get_memory"] = MCGetMemoryHandler
-        dialogue_object_classes["put_memory"] = PutMemoryHandler
+        dialogue_object_classes = {
+            "bot_capabilities": MCBotCapabilities,
+            "interpreter": SwarmMCInterpreter,
+            "get_memory": MCGetMemoryHandler,
+            "put_memory": PutMemoryHandler,
+        }
+
         self.opts.block_data = craftassist_specs.get_block_data()
         self.opts.special_shape_functions = SPECIAL_SHAPE_FNS
         low_level_interpreter_data = {
@@ -146,19 +148,18 @@ class CraftAssistSwarmMaster(CraftAssistAgent):
         }
     
     def if_swarm_task(self, mem):
-        for i in range(1, self.num_agents):
-            if "swarm_worker_{}".format(i) in mem.get_tags():
-                return True
-        return False
+        return any(
+            f"swarm_worker_{i}" in mem.get_tags()
+            for i in range(1, self.num_agents)
+        )
 
     def task_step(self, sleep_time=0.25):
         # TODO: add tag check to the query
         query = "SELECT MEMORY FROM Task WHERE prio=-1"
         _, task_mems = self.memory.basic_search(query)
         for mem in task_mems:
-            if not self.if_swarm_task(mem):
-                if mem.task.init_condition.check():
-                    mem.get_update_status({"prio": 0})
+            if not self.if_swarm_task(mem) and mem.task.init_condition.check():
+                mem.get_update_status({"prio": 0})
 
         # this is "select TaskNodes whose priority is >= 0 and are not paused"
         query = "SELECT MEMORY FROM Task WHERE ((prio>=0) AND (paused <= 0))"
@@ -195,10 +196,10 @@ class CraftAssistSwarmMaster(CraftAssistAgent):
         if query_name in self.handle_query_dict.keys():
             to_return = self.handle_query_dict[query_name](*query_args)
         else:
-            logging.info("swarm master cannot handle memory query: {}".format(query))
+            logging.info(f"swarm master cannot handle memory query: {query}")
             raise NotImplementedError
         to_return = self.safe_object(to_return)
-        return tuple([query_id, to_return])
+        return query_id, to_return
 
     def safe_single_object(self, input_object):
         if is_picklable(input_object):
@@ -223,14 +224,14 @@ class CraftAssistSwarmMaster(CraftAssistAgent):
         return return_dict
 
     def safe_object(self, input_object):
-        if isinstance(input_object, tuple):
-            tuple_len = len(input_object)
-            to_return = []
-            for i in range(tuple_len):
-                to_return.append(self.safe_single_object(input_object[i]))
-            return tuple(to_return)
-        else:
+        if not isinstance(input_object, tuple):
             return self.safe_single_object(input_object)
+        tuple_len = len(input_object)
+        to_return = [
+            self.safe_single_object(input_object[i]) for i in range(tuple_len)
+        ]
+
+        return tuple(to_return)
     
     def get_new_tasks(self, tag):
         query = "SELECT MEMORY FROM Task WHERE prio=-1"
@@ -239,16 +240,15 @@ class CraftAssistSwarmMaster(CraftAssistAgent):
         for mem in task_mems:
             if tag not in mem.get_tags():
                 continue
-            else:
-                task_name = mem.task.__class__.__name__.lower()
-                task_data = self.get_safe_single_object_attr_dict(mem.task)
-                memid = mem.task.memid
-                task_list.append((task_name, task_data, memid))
+            task_name = mem.task.__class__.__name__.lower()
+            task_data = self.get_safe_single_object_attr_dict(mem.task)
+            memid = mem.task.memid
+            task_list.append((task_name, task_data, memid))
         return task_list
     
     def step_assign_new_tasks_to_workers(self):
         for i in range(self.num_agents-1):
-            task_list = self.get_new_tasks(tag="swarm_worker_{}".format(i+1))
+            task_list = self.get_new_tasks(tag=f"swarm_worker_{i + 1}")
             for new_task in task_list:
                 self.swarm_workers[i].input_tasks.put(new_task)
 
@@ -310,7 +310,7 @@ if __name__ == "__main__":
     sh.setFormatter(log_formatter)
     logger = logging.getLogger()
     logger.addHandler(sh)
-    logging.info("LOG LEVEL: {}".format(logger.level))
+    logging.info(f"LOG LEVEL: {logger.level}")
 
     # Check that models and datasets are up to date and download latest resources.
     # Also fetches additional resources for internal users.

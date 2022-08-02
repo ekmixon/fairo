@@ -25,7 +25,7 @@ class SocketIOMock:
 
         return _decorator
 
-    def emit(*args, **kwargs):
+    def emit(self, **kwargs):
         pass
 
 

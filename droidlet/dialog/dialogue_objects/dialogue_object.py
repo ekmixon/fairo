@@ -76,7 +76,7 @@ class DialogueObject(object):
         """Check if the object is finished processing."""
         self.current_step += 1
         if self.current_step == self.max_steps:
-            logging.error("Stepped {} {} times, finishing".format(self, self.max_steps))
+            logging.error(f"Stepped {self} {self.max_steps} times, finishing")
             self.finished = True
         return self.finished
 

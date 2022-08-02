@@ -43,7 +43,7 @@ def download_if_not_present(model_path, url):
                 if exc.errno != errno.EEXIST:
                     raise
         print("GRASP MODEL NOT FOUND! DOWNLOADING IT!")
-        os.system("wget {} -O {}".format(url, model_path))
+        os.system(f"wget {url} -O {model_path}")
 
 
 def drawRectangle(I, h, w, t, gsize=300):
@@ -157,7 +157,7 @@ class GraspModel(object):
         print("Loading grasp model")
         st_time = time.time()
         self.grasp_obj = GraspTorchObj(model_path)
-        print("Time taken to load model: {}s".format(time.time() - st_time))
+        print(f"Time taken to load model: {time.time() - st_time}s")
         self.patchsize = patchsize
         self.n_importance = n_importance
         self.n_sen = n_sen
@@ -184,15 +184,15 @@ class GraspModel(object):
         result = self._predict_image(I, self._nbatches, self._batch_size)
         init_predictions, init_patch_Hs, init_patch_Ws = result
 
-        # Predicting for second round of sensitivity
-        sen_study = []
-        sen_options = []
         if self.n_sen <= 0:
             predictions, patch_Hs, patch_Ws = (init_predictions, init_patch_Hs, init_patch_Ws)
         else:
             im_shape = I.shape
             r = np.argsort(np.max(init_predictions, 1))
             r_best = r[-self.n_sen :][::-1]
+            # Predicting for second round of sensitivity
+            sen_study = []
+            sen_options = []
             for r_ind in r_best:
                 patch_h = init_patch_Hs[r_ind]
                 patch_w = init_patch_Ws[r_ind]
@@ -211,13 +211,12 @@ class GraspModel(object):
                     or scan_region[3] >= im_shape[1]
                 ):
                     continue
-                else:
-                    I_hw = I[scan_region[0] : scan_region[1], scan_region[2] : scan_region[3]]
-                    result = self._predict_image(I_hw, 1, self.n_sen_samples)
-                    hw_predictions, hw_patch_Hs, hw_patch_Ws = result
-                    sen_study.append(copy([hw_predictions, hw_patch_Hs, hw_patch_Ws]))
-                    sen_options.append(r_ind)
-            if len(sen_options) == 0:
+                I_hw = I[scan_region[0] : scan_region[1], scan_region[2] : scan_region[3]]
+                result = self._predict_image(I_hw, 1, self.n_sen_samples)
+                hw_predictions, hw_patch_Hs, hw_patch_Ws = result
+                sen_study.append(copy([hw_predictions, hw_patch_Hs, hw_patch_Ws]))
+                sen_options.append(r_ind)
+            if not sen_options:
                 predictions = init_predictions
                 patch_Hs = init_patch_Hs
                 patch_Ws = init_patch_Ws
@@ -257,7 +256,7 @@ class GraspModel(object):
         self._disp_I = drawRectangle(
             I, selected_grasp[0], selected_grasp[1], theta_choice_ind, int(self.patchsize)
         )
-        rospy.loginfo("Grasp prediction took: {} (s)" "".format(time.time() - start_time))
+        rospy.loginfo(f"Grasp prediction took: {time.time() - start_time} (s)")
         return selected_grasp
 
     def _predict_image(self, I, nbs, bs):

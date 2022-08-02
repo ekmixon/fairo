@@ -40,7 +40,7 @@ def safe_call(f, *args):
     try:
         return f(*args)
     except Pyro4.errors.ConnectionClosedError as e:
-        msg = "{} - {}".format(f._RemoteMethod__name, e)
+        msg = f"{f._RemoteMethod__name} - {e}"
         raise ErrorWithResponse(msg)
 
 
@@ -53,8 +53,8 @@ class LoCoBotMover:
     """
 
     def __init__(self, ip=None, backend="locobot"):
-        self.bot = Pyro4.Proxy("PYRONAME:remotelocobot@" + ip)
-        self.close_loop = False if backend == "habitat" else True
+        self.bot = Pyro4.Proxy(f"PYRONAME:remotelocobot@{ip}")
+        self.close_loop = backend != "habitat"
         self.curr_look_dir = np.array([0, 0, 1])  # initial look dir is along the z-axis
 
         intrinsic_mat = safe_call(self.bot.get_intrinsics)
@@ -111,32 +111,38 @@ class LoCoBotMover:
             dl, tl = execute_move(
                 pos,
                 [pos[0] - side, pos[1], pos[2]],
-                "Move Left " + magic_text,
+                f"Move Left {magic_text}",
                 use_map=use_vslam,
                 use_dslam=use_dslam,
             )
+
             df, tf = execute_move(
                 pos,
                 [pos[0] - side, pos[1] + side, pos[2]],
-                "Move Forward " + magic_text,
+                f"Move Forward {magic_text}",
                 use_map=use_vslam,
                 use_dslam=use_dslam,
             )
+
             dr, tr = execute_move(
                 pos,
                 [pos[0], pos[1] + side, pos[2]],
-                "Move Right " + magic_text,
+                f"Move Right {magic_text}",
                 use_map=use_vslam,
                 use_dslam=use_dslam,
             )
+
             db, tb = execute_move(
                 pos,
                 [pos[0], pos[1], pos[2]],
-                "Move Backward " + magic_text,
+                f"Move Backward {magic_text}",
                 use_map=use_vslam,
                 use_dslam=use_dslam,
             )
+
             return dl + df + dr + db, tl + tf + tr + tb
+
+            # move in a square of side 0.3 starting at current base pos
 
         # move in a square of side 0.3 starting at current base pos
         d, t = move_in_a_square("default", side=0.3, use_vslam=False, use_dslam=False)
@@ -215,7 +221,7 @@ class LoCoBotMover:
             # single xyt position given
             xyt_positions = [xyt_positions]
         for xyt in xyt_positions:
-            logging.info("Move absolute in canonical coordinates {}".format(xyt))
+            logging.info(f"Move absolute in canonical coordinates {xyt}")
             self.bot.go_to_absolute(
                 base_canonical_coords_to_pyrobot_coords(xyt),
                 close_loop=self.close_loop,
@@ -228,12 +234,9 @@ class LoCoBotMover:
 
             end_base_state = self.get_base_pos_in_canonical_coords()
             logging.info(
-                "start {}, end {}, diff {}".format(
-                    start_base_state,
-                    end_base_state,
-                    [b - a for a, b in zip(start_base_state, end_base_state)],
-                )
+                f"start {start_base_state}, end {end_base_state}, diff {[b - a for a, b in zip(start_base_state, end_base_state)]}"
             )
+
         return "finished"
 
     def look_at(self, obj_pos, yaw_deg, pitch_deg):

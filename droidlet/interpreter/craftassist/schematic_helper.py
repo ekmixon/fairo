@@ -59,14 +59,17 @@ def get_triples_from_flattened_clauses(flattened_clauses):
 def get_properties_from_clauses(clause_list, predicates):
     props = {}
     for clause in clause_list:
-        if clause.get("pred_text") in predicates:
-            # it wouldn't be too hard to recurse here, TODO?
-            if type(clause.get("obj_text", {})) is not dict:
-                props[clause["pred_text"]] = clause["obj_text"]
-        if clause.get("value_left") in predicates:
-            if clause.get("comparison_type", "EQUAL") == "EQUAL":
-                if clause.get("value_right", {}) is not dict:
-                    props[clause["value_left"]] = clause["value_right"]
+        if (
+            clause.get("pred_text") in predicates
+            and type(clause.get("obj_text", {})) is not dict
+        ):
+            props[clause["pred_text"]] = clause["obj_text"]
+        if (
+            clause.get("value_left") in predicates
+            and clause.get("comparison_type", "EQUAL") == "EQUAL"
+            and clause.get("value_right", {}) is not dict
+        ):
+            props[clause["value_left"]] = clause["value_right"]
     return props
 
 
@@ -105,9 +108,6 @@ def get_attrs_from_where(where_clauses, interpreter, block_data_info, color_bid_
         c = color_bid_map.get(text_keys["has_colour"])
         if c is not None:
             attrs["bid"] = random.choice(c)
-    else:
-        pass
-
     return attrs
 
 
@@ -195,10 +195,9 @@ def interpret_named_schematic(
     if not name:
         raise ErrorWithResponse("I don't know what you want me to build.")
     stemmed_name = name.strip("s")  # why aren't we using stemmer anymore?
-    shapename = SPECIAL_SHAPES_CANONICALIZE.get(name) or SPECIAL_SHAPES_CANONICALIZE.get(
-        stemmed_name
-    )
-    if shapename:
+    if shapename := SPECIAL_SHAPES_CANONICALIZE.get(
+        name
+    ) or SPECIAL_SHAPES_CANONICALIZE.get(stemmed_name):
         shape_blocks, tags = interpret_shape_schematic(
             interpreter,
             speaker,
@@ -213,14 +212,13 @@ def interpret_named_schematic(
     schematic = interpreter.memory.get_schematic_by_name(name)
     if schematic is None:
         schematic = interpreter.memory.get_schematic_by_name(stemmed_name)
-        if schematic is None:
-            raise ErrorWithResponse("I don't know what you want me to build.")
+    if schematic is None:
+        raise ErrorWithResponse("I don't know what you want me to build.")
     triples = [(p, v) for (_, p, v) in interpreter.memory.get_triples(subj=schematic.memid)]
     blocks = schematic.blocks
-    # TODO generalize to more general block properties
-    # Longer term: remove and put a call to the modify model here
-    colour = get_properties_from_clauses(flattened_clauses, ["has_colour"]).get("has_colour", "")
-    if colour:
+    if colour := get_properties_from_clauses(
+        flattened_clauses, ["has_colour"]
+    ).get("has_colour", ""):
         old_idm = most_common_idm(blocks.values())
         c = color_bid_map.get(colour)
         if c is not None:
@@ -247,27 +245,25 @@ def interpret_schematic(
     # AND this FIXME, not using selector properly
     repeat = filters_d.get("selector", {}).get("ordinal", "1")
     repeat = int(number_from_span(repeat))
-    if shape:
-        blocks, tags = interpret_shape_schematic(
-            interpreter, speaker, d, block_data_info, color_bid_map, special_shape_function
-        )
-        return [(blocks, None, tags)] * repeat
-    else:
+    if not shape:
         return [
             interpret_named_schematic(
                 interpreter, speaker, d, block_data_info, color_bid_map, special_shape_function
             )
         ] * repeat
+    blocks, tags = interpret_shape_schematic(
+        interpreter, speaker, d, block_data_info, color_bid_map, special_shape_function
+    )
+    return [(blocks, None, tags)] * repeat
 
 
 def get_repeat_dir(d):
     if "repeat" in d:
-        direction_name = d.get("repeat", {}).get("repeat_dir", "FRONT")
+        return d.get("repeat", {}).get("repeat_dir", "FRONT")
     elif "schematic" in d:
-        direction_name = d["schematic"].get("repeat", {}).get("repeat_dir", "FRONT")
+        return d["schematic"].get("repeat", {}).get("repeat_dir", "FRONT")
     else:
-        direction_name = None
-    return direction_name
+        return None
 
 
 def interpret_mob_schematic(interpreter, speaker, filters_d):
@@ -283,9 +279,10 @@ def interpret_mob_schematic(interpreter, speaker, filters_d):
     W = interpret_where_backoff(interpreter, speaker, where, memory_type="Schematic")
     F = maybe_apply_selector(interpreter, speaker, filters_d, W)
     schematic_memids, _ = F()
-    object_idms = [
-        list(SchematicNode(interpreter.memory, m).blocks.values())[0] for m in schematic_memids
-    ]
-    if not object_idms:
+    if object_idms := [
+        list(SchematicNode(interpreter.memory, m).blocks.values())[0]
+        for m in schematic_memids
+    ]:
+        return object_idms
+    else:
         raise ErrorWithResponse("I don't know how to spawn that")
-    return object_idms

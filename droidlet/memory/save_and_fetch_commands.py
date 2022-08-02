@@ -11,9 +11,7 @@ def create_connection(db_file):
     :param db_file: database file
     :return: Connection object or None
     """
-    conn = sqlite3.connect(db_file, check_same_thread=False)
-
-    return conn
+    return sqlite3.connect(db_file, check_same_thread=False)
 
 
 def create_table(conn, create_table_sql):
@@ -27,7 +25,8 @@ def create_table(conn, create_table_sql):
 
 
 def create_all_tables(conn):
-    create_table_commands = """CREATE TABLE IF NOT EXISTS commands (
+    if conn is not None:
+        create_table_commands = """CREATE TABLE IF NOT EXISTS commands (
         cmd_id INTEGER PRIMARY KEY,
         action_dict TEXT,
         chat_message TEXT,
@@ -35,50 +34,49 @@ def create_all_tables(conn):
         username TEXT
         );"""
 
-    create_table_tags = """CREATE TABLE IF NOT EXISTS tags (
+        # create commands table
+        create_table(conn, create_table_commands)
+
+        create_table_tags = """CREATE TABLE IF NOT EXISTS tags (
         tag_id INTEGER PRIMARY KEY,
         tag TEXT
         );"""
 
-    create_table_bridge = """CREATE TABLE IF NOT EXISTS command_tag_bridge (
+        # create tags table
+        create_table(conn, create_table_tags)
+
+        create_table_bridge = """CREATE TABLE IF NOT EXISTS command_tag_bridge (
         tag_id INTEGER,
         cmd_id INTEGER,
         FOREIGN KEY(tag_id) REFERENCES tags(tag_id),
         FOREIGN KEY(cmd_id) REFERENCES commands(cmd_id)
         );"""
 
-    create_table_errors = """CREATE TABLE IF NOT EXISTS error_annotation_info (
+        # create bridge table
+        create_table(conn, create_table_bridge)
+
+        create_table_errors = """CREATE TABLE IF NOT EXISTS error_annotation_info (
         error_type TEXT,
         chat TEXT,
         action_dict TEXT,
         feedback TEXT
         );"""
 
-    create_table_survey_results = """CREATE TABLE IF NOT EXISTS survey_results (
+        # create error annotation table
+        create_table(conn, create_table_errors)
+
+        create_table_survey_results = """CREATE TABLE IF NOT EXISTS survey_results (
         results TEXT
         );"""
 
-    crate_table_object_annotations = """CREATE TABLE IF NOT EXISTS object_annotations (
+        # create survey table
+        create_table(conn, create_table_survey_results)
+
+        crate_table_object_annotations = """CREATE TABLE IF NOT EXISTS object_annotations (
         object_name TEXT,
         object_tags TEXT,
         object_points TEXT
         );"""
-
-    if conn is not None:
-        # create commands table
-        create_table(conn, create_table_commands)
-
-        # create tags table
-        create_table(conn, create_table_tags)
-
-        # create bridge table
-        create_table(conn, create_table_bridge)
-
-        # create error annotation table
-        create_table(conn, create_table_errors)
-
-        # create survey table
-        create_table(conn, create_table_survey_results)
 
         # create object annotations table
         create_table(conn, crate_table_object_annotations)
@@ -87,10 +85,7 @@ def create_all_tables(conn):
 
 
 def dict_factory(cursor, row):
-    d = {}
-    for idx, col in enumerate(cursor.description):
-        d[col[0]] = row[idx]
-    return d
+    return {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
 
 
 def removeDuplicateCommands(rows):
@@ -132,8 +127,9 @@ def onlyFetchCommands(conn, query):
             LEFT JOIN command_tag_bridge b ON c.cmd_id = b.cmd_id
             LEFT JOIN tags t ON b.tag_id = t.tag_id
             WHERE t.tag = ? OR c.chat_message LIKE ?""",
-            (q, "%" + q + "%"),
+            (q, f"%{q}%"),
         )
+
         rows = cur.fetchall()
         all_rows.extend(rows)
     return removeDuplicateCommands(all_rows)
@@ -142,18 +138,14 @@ def onlyFetchCommands(conn, query):
 def saveAndFetchCommands(conn, postData):
     # get the data first
     conn.row_factory = dict_factory
-    action_dict = ""
-    if "action_dict" in postData:
-        action_dict = postData["action_dict"]
+    action_dict = postData["action_dict"] if "action_dict" in postData else ""
     chat_message = postData["chat_message"]
     username = postData["username"]
-    block_assembly = None
-    if "block_assembly" in postData:
-        block_assembly = postData["block_assembly"]
-    tags_list = []
-    if "tags_list" in postData:
-        tags_list = postData["tags_list"]
+    block_assembly = (
+        postData["block_assembly"] if "block_assembly" in postData else None
+    )
 
+    tags_list = postData["tags_list"] if "tags_list" in postData else []
     cur = conn.cursor()
     cur.execute(
         "select * from commands where chat_message=? and block_assembly=?",
@@ -194,12 +186,7 @@ def saveAndFetchCommands(conn, postData):
 def saveAnnotatedErrorToDb(conn, postData):
     # fetch relevant
     action_dict = json.dumps(postData["action_dict"])
-    # var new_dict = JSON.stringify(postData.new_action_dict);
-    err_type = "NOT_IDENTIFIED"
-
-    if "parsing_error" in postData:
-        err_type = "PARSING_ERROR"
-
+    err_type = "PARSING_ERROR" if "parsing_error" in postData else "NOT_IDENTIFIED"
     msg = postData["msg"]
     feedback = postData["feedback"]
     # var adtt = postData['adtt_text']

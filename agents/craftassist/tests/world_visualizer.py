@@ -202,10 +202,7 @@ class Model(object):
 
         """
         x, y, z = position
-        for dx, dy, dz in FACES:
-            if (x + dx, y + dy, z + dz) not in self.world:
-                return True
-        return False
+        return any((x + dx, y + dy, z + dz) not in self.world for dx, dy, dz in FACES)
 
     def add_block(self, position, texture, immediate=True):
         """Add a block with the given `texture` and `position` to the world.
@@ -261,9 +258,8 @@ class Model(object):
             if self.exposed(key):
                 if key not in self.shown:
                     self.show_block(key)
-            else:
-                if key in self.shown:
-                    self.hide_block(key)
+            elif key in self.shown:
+                self.hide_block(key)
 
     def show_block(self, position, immediate=True):
         """Show the block at the given `position`. This method assumes the
@@ -545,23 +541,19 @@ class Window(pyglet.window.Window):
         if self.autostep and self.model.agent is not None:
             self.model.agent.step()
             self.current_record = self.model.recorder.get_last_record()
-        else:
-            # self.current_record = {}
-            if self.loop:
-                if self.count % 10 == 0:
-                    try:
-                        self.current_record = next(self.tape)
-                    except:
-                        self.model.recorder.rewind()
-                        self.tape = iter(self.model.recorder)
-                        self.current_record = next(self.tape)
-                        self.model.clear_world()
-                        self.model.clone_agent_world()
-                        self.model.show_world()
-                        self.model.process_entire_queue()
+        elif self.loop and self.count % 10 == 0:
+            try:
+                self.current_record = next(self.tape)
+            except:
+                self.model.recorder.rewind()
+                self.tape = iter(self.model.recorder)
+                self.current_record = next(self.tape)
+                self.model.clear_world()
+                self.model.clone_agent_world()
+                self.model.show_world()
+                self.model.process_entire_queue()
 
-        block_changes = self.current_record.get("block_changes")
-        if block_changes:
+        if block_changes := self.current_record.get("block_changes"):
             for loc, idm in block_changes:
                 loc = self.model.recorder.from_world_coords(loc)
                 if idm[0] == 0:
@@ -640,7 +632,7 @@ class Window(pyglet.window.Window):
                     if tuple(op) not in self.model.world:
                         continue
                     p[i] -= (d - pad) * face[i]
-                    if face == (0, -1, 0) or face == (0, 1, 0):
+                    if face in [(0, -1, 0), (0, 1, 0)]:
                         # You are colliding with the ground or ceiling, so stop
                         # falling / rising.
                         self.dy = 0
@@ -857,8 +849,7 @@ class Window(pyglet.window.Window):
 
         """
         vector = self.get_sight_vector()
-        block = self.model.hit_test(self.position, vector)[0]
-        if block:
+        if block := self.model.hit_test(self.position, vector)[0]:
             x, y, z = block
             vertex_data = cube_vertices(x, y, z, 0.51)
             glColor3d(0, 0, 0)

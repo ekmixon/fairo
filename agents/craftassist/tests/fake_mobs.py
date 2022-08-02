@@ -45,9 +45,7 @@ def make_mob_opts(mobname):
 
 
 def check_bounds(p, sl):
-    if p >= sl or p < 0:
-        return -1
-    return 1
+    return -1 if p >= sl or p < 0 else 1
 
 
 class SimpleMob:
@@ -73,12 +71,7 @@ class SimpleMob:
             xz = np.random.randint(0, world.sl, (2,))
             slice = self.world.blocks[xz[0], :, xz[1], 0]
             nz = np.flatnonzero(slice)
-            if len(nz) == 0:
-                # mob will be floating, but why no floor here?
-                h = 0
-            else:
-                # if top block is nonzero mob will be trapped
-                h = nz[-1]
+            h = 0 if len(nz) == 0 else nz[-1]
             off = self.world.coord_shift
             self.pos = (float(xz[0]) + off[0], float(h + 1) + off[1], float(xz[1]) + off[2])
         self.world.mobs.append(self)
@@ -104,10 +97,9 @@ class SimpleMob:
         fy = int(np.floor(y))
         rx = int(np.round(x))
         rz = int(np.round(z))
-        if y > 0:
-            if self.world.blocks[rx, fy - 1, rz, 0] == 0:
-                self.pos = (self.pos[0], self.pos[1] - FALL_SPEED, self.pos[2])
-                return
+        if y > 0 and self.world.blocks[rx, fy - 1, rz, 0] == 0:
+            self.pos = (self.pos[0], self.pos[1] - FALL_SPEED, self.pos[2])
+            return
         # TODO when look implemented: change looks when loitering
         if self.loitering >= 0:
             self.loitering += 1

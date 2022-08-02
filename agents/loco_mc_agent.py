@@ -56,8 +56,8 @@ class LocoMCAgent(BaseAgent):
         }
         # Add optional logging for timeline
         if opts.log_timeline:
-            self.timeline_log_file = open("timeline_log.{}.txt".format(self.name), "a+")
-        
+            self.timeline_log_file = open(f"timeline_log.{self.name}.txt", "a+")
+
         # Add optional hooks for timeline
         if opts.enable_timeline:
             dispatch.connect(self.log_to_dashboard, "perceive")
@@ -121,9 +121,7 @@ class LocoMCAgent(BaseAgent):
             """
             logging.debug("in send_text_command_to_agent, got the command: %r" % (command))
 
-            agent_chat = (
-                "<dashboard> " + command
-            )  # the chat is coming from a player called "dashboard"
+            agent_chat = f"<dashboard> {command}"
             self.dashboard_chat = agent_chat
             logical_form = {}
             status = ""
@@ -148,7 +146,7 @@ class LocoMCAgent(BaseAgent):
                 "allChats": self.dashboard_memory["chats"],
             }
             sio.emit("setChatResponse", payload)
-        
+
         @sio.on("terminateAgent")
         def terminate_agent(sid, msg):
             logging.info("Terminating agent")
@@ -220,25 +218,23 @@ class LocoMCAgent(BaseAgent):
 
     def handle_exception(self, e):
         logging.exception(
-            "Default handler caught exception, db_log_idx={}".format(self.memory.get_db_log_idx())
+            f"Default handler caught exception, db_log_idx={self.memory.get_db_log_idx()}"
         )
+
         # we check if the exception raised is in one of our whitelisted exceptions
         # if so, we raise a reasonable message to the user, and then do some clean
         # up and continue
         if isinstance(e, ErrorWithResponse):
-            self.send_chat("Oops! Ran into an exception.\n'{}''".format(e.chat))
+            self.send_chat(f"Oops! Ran into an exception.\n'{e.chat}''")
             self.memory.task_stack_clear()
             self.dialogue_manager.dialogue_stack.clear()
             self.uncaught_error_count += 1
             if self.uncaught_error_count >= 100:
                 raise e
+        elif self.opts.agent_debug_mode:
+            return
         else:
-            # if it's not a whitelisted exception, immediatelly raise upwards,
-            # unless you are in some kind of a debug mode
-            if self.opts.agent_debug_mode:
-                return
-            else:
-                raise e
+            raise e
 
     def step(self):
         if self.count == 0:
@@ -285,22 +281,22 @@ class LocoMCAgent(BaseAgent):
         """Process incoming chats and run through parser"""
         raw_incoming_chats = self.get_incoming_chats()
         if raw_incoming_chats:
-            logging.info("Incoming chats: {}".format(raw_incoming_chats))
+            logging.info(f"Incoming chats: {raw_incoming_chats}")
         incoming_chats = []
         for raw_chat in raw_incoming_chats:
             match = re.search("^<([^>]+)> (.*)", raw_chat)
             if match is None:
-                logging.debug("Ignoring chat: {}".format(raw_chat))
+                logging.debug(f"Ignoring chat: {raw_chat}")
                 continue
 
-            speaker, chat = match.group(1), match.group(2)
+            speaker, chat = match[1], match[2]
             speaker_hash = hash_user(speaker)
-            logging.debug("Incoming chat: ['{}' -> {}]".format(speaker_hash, chat))
+            logging.debug(f"Incoming chat: ['{speaker_hash}' -> {chat}]")
             if chat.startswith("/"):
                 continue
             incoming_chats.append((speaker, chat))
 
-        if len(incoming_chats) > 0:
+        if incoming_chats:
             # force to get objects, speaker info
             if self.perceive_on_chat:
                 force = True
@@ -419,4 +415,4 @@ class LocoMCAgent(BaseAgent):
 
 def default_agent_name():
     """Use a unique name based on timestamp"""
-    return "bot.{}".format(str(time.time())[3:13])
+    return f"bot.{str(time.time())[3:13]}"

@@ -2,6 +2,7 @@
 Copyright (c) Facebook, Inc. and its affiliates.
 """
 
+
 import json
 import matplotlib.pyplot
 import numpy as np
@@ -12,73 +13,72 @@ import pickle
 # Update this when running this file
 home_dir = ""
 
-f = open(home_dir + "/minecraft_specs/block_images/css_chunk.txt")
-r = f.readlines()
-l = r[0]
-q = l.split(".items-28-")
+with open(f"{home_dir}/minecraft_specs/block_images/css_chunk.txt") as f:
+    r = f.readlines()
+    l = r[0]
+    q = l.split(".items-28-")
 
-g = open(home_dir + "/minecraft_specs/block_images/html_chunk.txt")
-s = g.readlines()
-name_to_bid = {}
-bid_to_name = {}
-for line in s:
-    c = line.find('"id">')
-    if c > 0:
-        d = line.find("<", c)
-        idlist = line[c + 5 : d].split(":")
-        if len(idlist) == 1:
-            idlist.append("0")
-    c = line.find('"name">')
-    if c > 0:
-        d = line.find("<", c)
-        name = line[c + 7 : d].lower()
-        bid = (int(idlist[0]), int(idlist[1]))
-        name_to_bid[name] = bid
-        bid_to_name[bid] = name
+    g = open(f"{home_dir}/minecraft_specs/block_images/html_chunk.txt")
+    s = g.readlines()
+    name_to_bid = {}
+    bid_to_name = {}
+    for line in s:
+        c = line.find('"id">')
+        if c > 0:
+            d = line.find("<", c)
+            idlist = line[c + 5 : d].split(":")
+            if len(idlist) == 1:
+                idlist.append("0")
+        c = line.find('"name">')
+        if c > 0:
+            d = line.find("<", c)
+            name = line[c + 7 : d].lower()
+            bid = (int(idlist[0]), int(idlist[1]))
+            name_to_bid[name] = bid
+            bid_to_name[bid] = name
 
-bid_to_offsets = {}
-for line in q:
-    s = line.find("png)")
-    if s > 0:
-        t = line.find("no-")
-        offsets = line[s + 5 : t].replace("px", "").split()
-        int_offsets = [int(offsets[0]), int(offsets[1])]
-        t = line.find("{")
-        ids = line[:t].split("-")
-        bid = (int(ids[0]), int(ids[1]))
-        bid_to_offsets[bid] = int_offsets
+    bid_to_offsets = {}
+    for line in q:
+        s = line.find("png)")
+        if s > 0:
+            t = line.find("no-")
+            offsets = line[s + 5 : t].replace("px", "").split()
+            int_offsets = [int(offsets[0]), int(offsets[1])]
+            t = line.find("{")
+            ids = line[:t].split("-")
+            bid = (int(ids[0]), int(ids[1]))
+            bid_to_offsets[bid] = int_offsets
 
-big_image = matplotlib.pyplot.imread(home_dir + "/minecraft_specs/block_images/all_blocks")
-
-bid_to_image = {}
-name_to_image = {}
-
-for name in name_to_bid:
-    bid = name_to_bid[name]
-    offsets = bid_to_offsets[bid]
-    small_image = big_image[
-        -offsets[1] : -offsets[1] + 32, -offsets[0] : -offsets[0] + 32, :
-    ].copy()
-
-    bid_to_image[bid] = small_image
-    name_to_image[name] = small_image
+    big_image = matplotlib.pyplot.imread(
+        f"{home_dir}/minecraft_specs/block_images/all_blocks"
+    )
 
 
-out = {
-    "bid_to_image": bid_to_image,
-    "name_to_image": name_to_image,
-    "bid_to_name": bid_to_name,
-    "name_to_bid": name_to_bid,
-}
+    bid_to_image = {}
+    name_to_image = {}
 
-f.close()
+    for name in name_to_bid:
+        bid = name_to_bid[name]
+        offsets = bid_to_offsets[bid]
+        small_image = big_image[
+            -offsets[1] : -offsets[1] + 32, -offsets[0] : -offsets[0] + 32, :
+        ].copy()
+
+        bid_to_image[bid] = small_image
+        name_to_image[name] = small_image
+
+
+    out = {
+        "bid_to_image": bid_to_image,
+        "name_to_image": name_to_image,
+        "bid_to_name": bid_to_name,
+        "name_to_bid": name_to_bid,
+    }
+
 g.close()
 
-f = open(home_dir + "/minecraft_specs/block_images/block_data", "wb")
-pickle.dump(out, f)
-f.close()
-
-
+with open(f"{home_dir}/minecraft_specs/block_images/block_data", "wb") as f:
+    pickle.dump(out, f)
 COLOR_NAMES = [
     "aqua",
     "black",
@@ -127,14 +127,15 @@ COLORS = np.array(
         (1.0, 0.65, 0.0),
         (139 / 255, 69 / 255, 19 / 255),
         (160 / 255, 82 / 255, 45 / 255),
-        (255 / 255, 192 / 255, 203 / 255),
+        (1, 192 / 255, 203 / 255),
         (200 / 255, 200 / 255, 50 / 255),
         (200 / 255, 200 / 255, 50 / 255),
-        (255 / 255, 255 / 255, 130 / 255),
-        (255 / 255, 215 / 255, 40 / 255),
-        (255 / 255, 215 / 255, 0 / 255),
+        (1, 1, 130 / 255),
+        (1, 215 / 255, 40 / 255),
+        (1, 215 / 255, 0 / 255),
     )
 )
+
 
 COLOR_NORMS = np.linalg.norm(COLORS, axis=1) ** 2
 
@@ -231,7 +232,7 @@ simple_colors_to_name = {}
 # f.close()
 
 
-with open(home_dir + "/minecraft_specs/block_images/block_property_data.json") as f:
+with open(f"{home_dir}/minecraft_specs/block_images/block_property_data.json") as f:
     block_property_data = json.load(f)
 
 name_to_properties = {}
@@ -253,11 +254,9 @@ for name in name_to_image:
 
 out = {"name_to_properties": name_to_properties, "properties_to_name": properties_to_name}
 
-f = open(home_dir + "/minecraft_specs/block_images/block_property_data", "wb")
-pickle.dump(out, f)
-f.close()
-
-with open(home_dir + "/minecraft_specs/block_images/mob_property_data.json") as f:
+with open(f"{home_dir}/minecraft_specs/block_images/block_property_data", "wb") as f:
+    pickle.dump(out, f)
+with open(f"{home_dir}/minecraft_specs/block_images/mob_property_data.json") as f:
     mob_property_data = json.load(f)
 
 name_to_properties = {}
@@ -279,11 +278,8 @@ for name in name_to_image:
 
 out = {"name_to_properties": name_to_properties, "properties_to_name": properties_to_name}
 
-f = open(home_dir + "/minecraft_specs/block_images/mob_property_data", "wb")
-pickle.dump(out, f)
-f.close()
-
-
+with open(f"{home_dir}/minecraft_specs/block_images/mob_property_data", "wb") as f:
+    pickle.dump(out, f)
 """
 COLORS = {
     'aqua': np.array((0.0, 1.0, 1.0)),
